@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xcxcxcxcx.persistence.db.mybatis.mapper.MessageMapper">
+
+    <resultMap id="BaseResultMap" type="com.xcxcxcxcx.mini.api.connector.message.Message">
+        <id column="mid" property="mid" jdbcType="BIGINT"/>
+        <result column="topicId" property="topicId" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="pulledTimes" property="pulledTimes" jdbcType="INTEGER"/>
+        <result column="expired" property="expired" jdbcType="BIGINT"/>
+        <result column="content" property="content" jdbcType="VARCHAR"/>
+    </resultMap>
+    <sql id="Base_Column_List">
+        mid, topicId, status, pulledTimes, expired, content
+    </sql>
+
+    <!-- 插入 -->
+    <insert id="insertSelective"
+            parameterType="com.xcxcxcxcx.mini.api.connector.message.Message"
+            useGeneratedKeys="true"
+            keyColumn="mid"
+            keyProperty="mid">
+        <selectKey keyProperty="mid" keyColumn="mid" resultType="java.lang.Long" order="AFTER" statementType="PREPARED">
+            SELECT mid
+            FROM message
+            where mid = #{mid}
+        </selectKey>
+        INSERT INTO message (<include refid="Base_Column_List"/>)
+        VALUE (#{mid,jdbcType=BIGINT},
+        #{topicId,jdbcType=VARCHAR},
+        #{status,jdbcType=INTEGER},
+        #{pulledTimes,jdbcType=INTEGER},
+        #{expired,jdbcType=BIGINT},
+        #{content,jdbcType=VARCHAR})
+    </insert>
+
+    <!-- 更新 -->
+    <update id="updateSelective" parameterType="com.xcxcxcxcx.mini.api.connector.message.Message">
+        <selectKey keyProperty="mid" keyColumn="mid" resultType="java.lang.Long" order="AFTER" statementType="PREPARED">
+            SELECT mid
+            FROM message
+            where mid = #{mid}
+        </selectKey>
+        UPDATE message
+        <set>
+            <if test="topicId != null">
+                topicId = #{topicId},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="pulledTimes != null">
+                pulledTimes = pulledTimes + #{pulledTimes},
+            </if>
+            <if test="expired != null">
+                expired = #{expired},
+            </if>
+            <if test="content != null">
+                content = #{content},
+            </if>
+        </set>
+        WHERE mid = #{mid}
+    </update>
+
+    <!-- 删除数据 -->
+    <delete id="batchDelete">
+        DELETE FROM message
+        WHERE 1=1
+        <if test="messageIds != null">
+            AND mid in (
+            <foreach collection="messageIds" item="messageId" separator=",">
+                #{messageId}
+            </foreach>
+            )
+        </if>
+        <if test="topicId != null">
+            AND topicId = #{topicId}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        <if test="pulledTimes != null">
+            AND pulledTimes = #{pulledTimes}
+        </if>
+        <if test="expired != null">
+            AND expired = #{expired}
+        </if>
+    </delete>
+
+    <select id="query"
+            parameterType="com.xcxcxcxcx.mini.api.connector.message.Message"
+            resultType="java.util.ArrayList"
+            resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM message
+        where 1 = 1
+        <if test="message.topicId != null">
+            AND topicId = #{message.topicId}
+        </if>
+        <if test="message.status != null">
+            AND status = #{message.status}
+        </if>
+        <if test="message.pulledTimes != null">
+            AND pulledTimes = #{message.pulledTimes}
+        </if>
+        <if test="message.expired != null">
+            AND expired = #{message.expired}
+        </if>
+        <if test="message.content != null">
+            AND content like #{message.content}
+        </if>
+        <bind name="start" value="(pageNum-1)*pageSize"></bind>
+        <bind name="end" value="pageNum*pageSize"></bind>
+        LIMIT #{start},#{end}
+    </select>
+
+</mapper>
