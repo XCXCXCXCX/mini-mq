@@ -94,8 +94,8 @@
 3. PacketDispatcher（消息分发器）（√）
 4. Topic（√）
 5. Patition（√）
-6. PatitionRouter
-7. ConsumerRouter
+6. PatitionRouter（√）
+7. ConsumerRouter（√）
 8. FlowControl
 9. producer（√）
 10. consumer（√）
