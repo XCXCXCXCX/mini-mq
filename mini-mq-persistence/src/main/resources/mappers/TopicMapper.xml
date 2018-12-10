@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xcxcxcxcx.persistence.db.mybatis.mapper.TopicMapper">
+
+
+    <!-- 插入 -->
+    <insert id="createTopic">
+        INSERT INTO topic
+        VALUE (null, #{topicId}, #{partitionNum})
+    </insert>
+
+    <!-- 删除 -->
+    <delete id="removeTopic">
+        DELETE FROM topic
+        WHERE topicId = #{topicId}
+    </delete>
+
+    <resultMap id="topicMap" type="com.xcxcxcxcx.mini.api.spi.persistence.TopicEntity">
+        <id property="id" column="id" javaType="int" jdbcType="INTEGER" />
+        <result property="topicId" column="topicId" javaType="String" jdbcType="VARCHAR" />
+        <result property="partitionNum" column="partitionNum" javaType="int" jdbcType="INTEGER" />
+    </resultMap>
+
+    <select id="getAllTopic"
+            resultMap="topicMap"
+            resultType="java.util.ArrayList">
+        SELECT topicId, partitionNum FROM topic
+    </select>
+
+</mapper>

@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xcxcxcxcx.persistence.db.mybatis.mapper.MessageMapper">
+
+    <resultMap id="BaseResultMap" type="com.xcxcxcxcx.mini.api.connector.message.Message">
+        <id column="mid" property="mid" jdbcType="BIGINT"/>
+        <result column="topicId" property="topicId" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="pulledTimes" property="pulledTimes" jdbcType="INTEGER"/>
+        <result column="expired" property="expired" jdbcType="BIGINT"/>
+        <result column="content" property="content" jdbcType="VARCHAR"/>
+    </resultMap>
+    <sql id="Base_Column_List">
+        mid, topicId, status, pulledTimes, expired, content
+    </sql>
+
+    <!-- 批量插入 -->
+    <insert id="batchInsert"
+            parameterType="java.util.ArrayList">
+        INSERT INTO message (<include refid="Base_Column_List"/>)
+        VALUES
+        <foreach collection ="list" item="message" separator =",">
+            (#{message.mid,jdbcType=BIGINT},
+            #{message.topicId,jdbcType=VARCHAR},
+            #{message.status,jdbcType=INTEGER},
+            #{message.pulledTimes,jdbcType=INTEGER},
+            #{message.expired,jdbcType=BIGINT},
+            #{message.content,jdbcType=VARCHAR})
+        </foreach >
+
+    </insert>
+
+    <!-- 批量更新 -->
+    <update id="batchUpdate" parameterType="com.xcxcxcxcx.mini.api.connector.message.Message">
+        UPDATE message
+        <set>
+            <if test="topicId != null">
+                topicId = #{topicId},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="plusTimes != null">
+                pulledTimes = pulledTimes + #{plusTimes},
+            </if>
+            <if test="expired != null">
+                expired = #{expired},
+            </if>
+            <if test="content != null">
+                content = #{content},
+            </if>
+        </set>
+        <where>
+            <if test="messageIds != null">
+                mid in
+                <foreach collection="messageIds" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="oldTopicId != null">
+                AND topicId = #{oldTopicId}
+            </if>
+            <if test="oldStatus != null">
+                AND status = #{oldStatus}
+            </if>
+            <if test="fromPulledTimes != null">
+                AND pulledTimes <![CDATA[ >= ]]> #{fromPulledTimes}
+            </if>
+            <if test="toPulledTimes != null">
+                AND pulledTimes <![CDATA[ <= ]]> #{toPulledTimes}
+            </if>
+            <if test="oldExpired != null and oldExpired != 0">
+                AND expired <![CDATA[ < ]]> #{oldExpired}
+                AND expired <![CDATA[ > ]]> 0
+            </if>
+        </where>
+    </update>
+
+    <!-- 批量删除 -->
+    <delete id="batchDelete">
+        DELETE FROM message
+        <where>
+            <if test="messageIds != null">
+                AND mid in (
+                <foreach collection="messageIds" item="messageId" separator=",">
+                    #{messageId}
+                </foreach>
+                )
+            </if>
+            <if test="topicId != null">
+                AND topicId = #{topicId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="fromPulledTimes != null">
+                AND pulledTimes <![CDATA[ >= ]]> #{fromPulledTimes}
+            </if>
+            <if test="toPulledTimes != null">
+                AND pulledTimes <![CDATA[ <= ]]> #{toPulledTimes}
+            </if>
+            <if test="expired != null and expired != 0">
+                AND expired <![CDATA[ < ]]> #{expired}
+                AND expired <![CDATA[ > ]]> 0
+            </if>
+        </where>
+    </delete>
+
+    <select id="query"
+            parameterType="com.xcxcxcxcx.mini.api.connector.message.Message"
+            resultType="java.util.ArrayList"
+            resultMap="BaseResultMap">
+        SELECT
+        <include refid="Base_Column_List"/>
+        FROM message
+        <where>
+            <if test="messageIds != null">
+                AND mid in (
+                <foreach collection="messageIds" item="messageId" separator=",">
+                    #{messageId}
+                </foreach>
+                )
+            </if>
+            <if test="topicId != null">
+                AND topicId = #{topicId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="fromPulledTimes != null">
+                AND pulledTimes <![CDATA[ >= ]]> #{fromPulledTimes}
+            </if>
+            <if test="toPulledTimes != null">
+                AND pulledTimes <![CDATA[ <= ]]> #{toPulledTimes}
+            </if>
+            <if test="expired != null and oldExpired != 0">
+                AND expired <![CDATA[ < ]]> #{expired}
+                AND expired <![CDATA[ > ]]> 0
+            </if>
+            <if test="blurContent != null">
+                AND content like #{blurContent}
+            </if>
+        </where>
+        <if test="pageNum != null and pageSize != null and pageNum != 0 and pageSize != 0">
+            <bind name="start" value="(pageNum-1)*pageSize"></bind>
+            <bind name="end" value="pageNum*pageSize"></bind>
+            LIMIT #{start},#{end}
+        </if>
+    </select>
+
+
+    <update id="batchUpdate2" parameterType="java.util.ArrayList">
+        UPDATE message
+        <trim prefix="set" suffixOverrides=",">
+            <trim prefix="topicId =case" suffix="end,">
+                <foreach collection="list" item="i" index="index">
+                    <if test="i.topicId!=null">
+                        when id=#{i.mid} then #{i.topicId}
+                    </if>
+                </foreach>
+            </trim>
+            <trim prefix="status =case" suffix="end,">
+                <foreach collection="list" item="i" index="index">
+                    <if test="i.status!=null">
+                        when id=#{i.mid} then #{i.status}
+                    </if>
+                </foreach>
+            </trim>
+
+            <trim prefix="pulledTimes =case" suffix="end," >
+                <foreach collection="list" item="i" index="index">
+                    <if test="i.pulledTimes!=null">
+                        when id=#{i.mid} then pulledTimes + #{i.pulledTimes}
+                    </if>
+                </foreach>
+            </trim>
+            <trim prefix="expired =case" suffix="end," >
+                <foreach collection="list" item="i" index="index">
+                    <if test="i.expired!=null">
+                        when id=#{i.mid} then #{i.expired}
+                    </if>
+                </foreach>
+            </trim>
+            <trim prefix="content =case" suffix="end," >
+                <foreach collection="list" item="i" index="index">
+                    <if test="i.content!=null">
+                        when id=#{i.mid} then #{i.content}
+                    </if>
+                </foreach>
+            </trim>
+        </trim>
+        <if test="messages != null">
+            where
+            id in (
+            <foreach collection="list" separator="," item="i" index="index" >
+                #{i.mid}
+            </foreach>
+            )
+        </if>
+    </update>
+
+</mapper>

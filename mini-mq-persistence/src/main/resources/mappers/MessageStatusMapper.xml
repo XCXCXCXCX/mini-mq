@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xcxcxcxcx.persistence.db.mybatis.mapper.MessageStatusMapper">
+
+    <resultMap id="BaseResultMap" type="com.xcxcxcxcx.mini.api.spi.persistence.MessageStatusEntity">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="mid" property="mid" jdbcType="BIGINT"/>
+        <result column="consumerGroupId" property="consumerGroupId" jdbcType="VARCHAR"/>
+        <result column="pulledTimes" property="pulledTimes" jdbcType="INTEGER"/>
+        <result column="expired" property="expired" jdbcType="BIGINT"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, mid, consumerGroupId, pulledTimes, expired, status
+    </sql>
+
+    <insert id="batchInsert"
+            parameterType="java.util.ArrayList">
+        INSERT INTO message_status (<include refid="Base_Column_List"/>)
+        VALUES
+        <foreach collection ="list" item="messageStatus" separator =",">
+            (#{messageStatus.mid,jdbcType=BIGINT},
+            #{messageStatus.consumerGroupId,jdbcType=VARCHAR},
+            1,
+            #{messageStatus.expired,jdbcType=INTEGER},
+            2)
+        </foreach >
+    </insert>
+
+    <update id="batchUpdate"
+            parameterType="java.util.ArrayList">
+        UPDATE message_status
+        <set>
+            pulledTimes = pulledTimes + 1
+            AND status = 2
+            <if test="expired != null">
+                AND expired = #{expired}
+            </if>
+        </set>
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="consumerGroupId != null">
+                AND consumerGroupId = #{consumerGroupId}
+            </if>
+            AND (
+            (
+            <if test="pulledTimes != null">
+                AND pulledTimes <![CDATA[ < ]]> #{maxPulledTimes}
+            </if>
+            <if test="expired != null">
+                AND expired <![CDATA[ < ]]> REPLACE(unix_timestamp(NOW(3)),'.','')
+            </if>
+            AND status = 2
+            )
+            OR
+            (
+            <if test="pulledTimes != null">
+                AND pulledTimes <![CDATA[ < ]]> #{maxPulledTimes}
+            </if>
+            AND status = 4
+            )
+            )
+        </where>
+    </update>
+
+    <resultMap id="MessageResultMap" type="com.xcxcxcxcx.mini.api.connector.message.Message">
+        <id column="mid" property="mid" jdbcType="BIGINT"/>
+        <result column="topicId" property="topicId" jdbcType="VARCHAR"/>
+        <result column="expired" property="expired" jdbcType="BIGINT"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="content" property="content" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <select id="queryByIdsAndGroup"
+            resultType="java.util.ArrayList">
+        SELECT mid
+        FROM message_status
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="consumerGroupId != null">
+                AND consumerGroupId = #{consumerGroupId}
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="queryAbsent"
+            resultType="java.util.ArrayList">
+      SELECT mid
+      FROM message m
+      <where>
+          <if test="topicId != null">
+              m.topicId = #{topicId}
+          </if>
+          AND mid not in (SELECT mid FROM message_status WHERE consumerGroupId = #{consumerGroupId})
+      </where>
+        <if test="pageNum != null and pageSize != null and pageNum != 0 and pageSize != 0">
+            <bind name="start" value="(pageNum-1)*pageSize"/>
+            <bind name="end" value="pageNum*pageSize"/>
+            limit #{start},#{end}
+        </if>
+    </select>
+
+    <select id="queryNotAbsent"
+            resultMap="MessageResultMap"
+            resultType="java.util.ArrayList">
+      SELECT m.mid, m.topicId, m.status, m.expired, m.content
+      FROM message m RIGHT INNER JOIN message_status s on m.mid = s.mid
+      <where>
+          <if test="topicId != null">
+              m.topicId = #{topicId}
+          </if>
+          <if test="consumerGroupId != null">
+              AND s.consumerGroupId = #{consumerGroupId}
+          </if>
+          AND m.status = 1
+      </where>
+        <if test="pageNum != null and pageSize != null and pageNum != 0 and pageSize != 0">
+            <bind name="start" value="(pageNum-1)*pageSize"/>
+            <bind name="end" value="pageNum*pageSize"/>
+            limit #{start},#{end}
+        </if>
+    </select>
+
+
+    <!-- 批量确认pull -->
+    <update id="batchAckPull"
+            parameterType="java.util.ArrayList">
+        UPDATE message_status
+        <set>
+            status = 3
+        </set>
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="consumerGroupId != null">
+                AND s.consumerGroupId = #{consumerGroupId}
+            </if>
+            AND status = 2
+        </where>
+    </update>
+
+    <!-- 批量拒绝pull -->
+    <update id="batchRejectPull"
+            parameterType="java.util.ArrayList">
+        UPDATE message
+        <set>
+            status = 4
+        </set>
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="consumerGroupId != null">
+                AND s.consumerGroupId = #{consumerGroupId}
+            </if>
+            AND status = 2
+        </where>
+    </update>
+
+</mapper>

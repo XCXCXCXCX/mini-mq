@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<!--需要按照一定顺序-->
+<configuration>
+    <!--properties配置-->
+    <!--settings配置-->
+    <settings>
+        <setting name="logImpl" value="LOG4J"/>
+    </settings>
+    <!--typeAliases配置-->
+    <typeAliases>
+        <package name="com.xcxcxcxcx.mini.api.connector.message.Message"/>
+    </typeAliases>
+    <!--plugins配置-->
+    <!--environments配置-->
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC"/>
+            <!--整合druid连接池-->
+            <dataSource type="com.xcxcxcxcx.persistence.db.mybatis.druid.DruidDataSourceAdapter">
+                <!--<property name="driver" value="${driver}"/>-->
+                <property name="url" value="${url}"/>
+                <property name="username" value="${username}"/>
+                <property name="password" value="${password}"/>
+            </dataSource>
+        </environment>
+    </environments>
+    <!--mappers配置-->
+    <mappers>
+        <mapper resource="mappers/MessageMapper.xml"/>
+        <mapper resource="mappers/TopicMapper.xml"/>
+    </mappers>
+</configuration>

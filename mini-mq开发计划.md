@@ -54,7 +54,7 @@
 
 #### 方法调用耗时情况监控（√）
 
-* 耗时监控类（需要能监控树形结构的方法耗时情况及平均值/最大值/最小值）
+* 耗时监控类（需要能监控树形结构的方法耗时情况及平均值/最大值/最小值）（√）
 
 
 ### network模块开发（√）
@@ -68,20 +68,20 @@
 
 #### Netty server（√）
 
-* NettyTcpServer（抽象类，继承自BaseService）
+* NettyTcpServer（抽象类，继承自BaseService）（√）
 
 #### Netty client（√）
 
-* NettyTcpClient（抽象类，继承自BaseService）
+* NettyTcpClient（抽象类，继承自BaseService）（√）
 
 #### Netty connection（√）
 
-* NettyConnection（实现类，实现Connection接口）
+* NettyConnection（实现类，实现Connection接口）（√）
 
 #### Netty数据包的编解码（√）
 
-* PacketDecoder（实现类，继承自ByteToMessageDecoder，是Netty通信的组件）
-* PacketEncoder（实现类，继承自MessageToByteEncoder，是Netty通信的组件）
+* PacketDecoder（实现类，继承自ByteToMessageDecoder，是Netty通信的组件）（√）
+* PacketEncoder（实现类，继承自MessageToByteEncoder，是Netty通信的组件）（√）
 
 
 
@@ -96,7 +96,7 @@
 5. Patition（√）
 6. PatitionRouter（√）
 7. ConsumerRouter（√）
-8. FlowControl
+8. FlowControl（netty提供了流量整形的handler实现）
 9. producer（√）
 10. consumer（√）
 

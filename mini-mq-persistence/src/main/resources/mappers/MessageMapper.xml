@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.xcxcxcxcx.persistence.db.mybatis.mapper.MessageMapper">
+
+    <resultMap id="BaseResultMap" type="com.xcxcxcxcx.mini.api.connector.message.Message">
+        <id column="mid" property="mid" jdbcType="BIGINT"/>
+        <result column="topicId" property="topicId" jdbcType="VARCHAR"/>
+        <result column="expired" property="expired" jdbcType="BIGINT"/>
+        <result column="status" property="status" jdbcType="INTEGER"/>
+        <result column="content" property="content" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        mid, topicId, expired, status, content
+    </sql>
+
+    <!-- 批量插入message -->
+    <insert id="batchPush"
+            parameterType="java.util.ArrayList">
+    INSERT INTO message (<include refid="Base_Column_List"/>)
+    VALUES
+        <foreach collection ="list" item="message" separator =",">
+          (#{message.mid,jdbcType=BIGINT},
+            #{message.topicId,jdbcType=VARCHAR},
+            #{message.expired,jdbcType=BIGINT},
+            #{message.status,jdbcType=INTEGER},
+            #{message.content,jdbcType=VARCHAR})
+        </foreach >
+    </insert>
+
+    <!-- 批量确认push -->
+    <update id="batchAckPush"
+            parameterType="java.util.ArrayList">
+        UPDATE message
+        <set>
+            status = 1
+        </set>
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            AND status = 0
+        </where>
+    </update>
+
+    <!-- 批量拒绝push -->
+    <delete id="batchRejectPush" parameterType="java.util.ArrayList">
+        DELETE FROM message
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            AND status = 0
+        </where>
+    </delete>
+
+    <!-- 根据id查id,用于验证数据是否成功插入 -->
+    <select id="queryIdById" parameterType="java.util.ArrayList">
+        SELECT mid
+        FROM message
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <!-- 根据id查记录 -->
+    <select id="queryById" parameterType="java.util.ArrayList">
+        SELECT <include refid="Base_Column_List"/>
+        FROM message
+        <where>
+            <if test="ids != null">
+                mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <delete id="cleanExpired">
+        DELETE FROM message
+        WHERE status = 0
+        AND expired <![CDATA[ < ]]> REPLACE(unix_timestamp(NOW(3)),'.','')
+    </delete>
+
+    <delete id="deleteByTopicId">
+        DELETE m,s FROM message m, message_status s
+        WHERE
+        m.mid = s.mid
+        AND topicId = #{topicId}
+    </delete>
+
+</mapper>
