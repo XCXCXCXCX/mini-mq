@@ -8,5 +8,4 @@ package com.xcxcxcxcx.mini.common.topic;
 public interface Factory<T> {
 
     T create();
-
 }

@@ -1,16 +1,18 @@
 package com.xcxcxcxcx.mini.common.topic;
 
-import com.xcxcxcxcx.mini.api.client.*;
 import com.xcxcxcxcx.mini.api.connector.message.Message;
+import com.xcxcxcxcx.mini.api.connector.topic.Partition;
 import com.xcxcxcxcx.mini.api.connector.topic.Topic;
 import com.xcxcxcxcx.mini.api.connector.topic.router.LoadBalance;
 import com.xcxcxcxcx.mini.api.spi.router.Router;
 import com.xcxcxcxcx.mini.api.spi.router.RouterFactory;
+import com.xcxcxcxcx.mini.common.topic.task.RetryConsumptionTask;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -21,31 +23,36 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class BaseTopic implements Topic{
 
+    private final static int DEFAULT_RETRY_PULL_MAX_NUM = 100;
+
     /**
      * 全局唯一的topicId
      */
     private final String topicId;
 
-    /**
-     * 一个topic可以有多个物理队列
-     */
-    private final List<BasePartition> partitions;
+    private final String groupId;
 
     private final AtomicInteger currentPartitionIndex;
 
     private final DefaultPartitionFactory factory = new DefaultPartitionFactory(this);
 
-    private final Map<String, Producer> producerMap = new ConcurrentHashMap<>();
-    private final Map<String, Consumer> consumerMap = new ConcurrentHashMap<>();
+    private final List<BasePartition> partitions;
 
-    public BaseTopic(String topicId, int partitionNum) {
+    private final Set<String> subscribedConsumers;
+
+    public BaseTopic(String topicId,
+                     String groupId,
+                     int partitionNum) {
         this.topicId = topicId;
+        this.groupId = groupId;
         currentPartitionIndex = new AtomicInteger(partitionNum);
         partitions = factory.createList(partitionNum);
+        subscribedConsumers = new ConcurrentSkipListSet<>();
     }
 
-    public BaseTopic(String topicId) {
-        this(topicId, 1);
+    public BaseTopic(String topicId,
+                     String groupId) {
+        this(topicId, groupId, 1);
     }
 
     public int getAndIncr(){
@@ -59,7 +66,7 @@ public abstract class BaseTopic implements Topic{
 
     @Override
     public int countCurrentPartition() {
-        return partitions.size();
+        return currentPartitionIndex.get();
     }
 
     @Override
@@ -80,43 +87,64 @@ public abstract class BaseTopic implements Topic{
     }
 
     @Override
-    public Map<String, Producer> getProducers() {
-        return producerMap;
+    public int subscribe(String consumerIdAndIdInGroup){
+        subscribedConsumers.add(consumerIdAndIdInGroup);
+        return subscribedConsumers.size();
     }
 
     @Override
-    public Map<String, Consumer> getConsumers() {
-        return consumerMap;
+    public int unsubscribe(String consumerIdAndIdInGroup){
+        subscribedConsumers.remove(consumerIdAndIdInGroup);
+        return subscribedConsumers.size();
     }
 
     @Override
-    public void join(Partner partner, Properties roleProperties) {
-        String roleName = partner.getRole().getRoleName();
-        if(Role.PRODUCER.equals(roleName)){
-            producerMap.put(partner.getId(), (Producer)partner);
+    public int getSubscribeNum(){
+        return subscribedConsumers.size();
+    }
 
-        }else if(Role.CONSUMER.equals(roleName)){
-            consumerMap.put(partner.getId(), (Consumer) partner);
+    @Override
+    public int getMessageSum() {
+        int sum = 0;
+        for(Partition partition : partitions){
+            sum += partition.getMessageSum();
+        }
+        return sum;
+    }
 
-
-        }else if(Role.PRODUCER_AND_CONSUMER.equals(roleName)){
-            producerMap.put(partner.getId(), (Producer)partner);
-            consumerMap.put(partner.getId(), (Consumer) partner);
-
-        }else{
-            throw new IllegalArgumentException("the joining role is not exist");
+    @Override
+    public void destroy() {
+        for(BasePartition partition : partitions){
+            partition.destroy();
         }
     }
 
+    @Override
+    public void sendMessage(Message message) {
+        //choose partition randomly
+        ((BasePartition)getRouter().route(LoadBalance.LoadBalanceStrategy.RANDOM, partitions)).pushMessage(Collections.singletonList(message));
+    }
+
+    @Override
+    public void sendMessage(Message message, String key) {
+        sendMessage(Collections.singletonList(message), key);
+    }
+
     /**
-     * 选择订阅量最多的partition来发布消息
+     *
+     * 随机选择partition来发布消息
      * @param messages
      */
     @Override
     public void sendMessage(List<Message> messages) {
-        //choose Max-SubscribeNum  partition
-        ((BasePartition)getRouter().route(LoadBalance.LoadBalanceStrategy.MAX_LB, partitions)).pushMessage(messages);
-
+        for(Message message : messages){
+            String key = message.getKey();
+            if(key == null){
+                sendMessage(message, key);
+            }else{
+                sendMessage(message);
+            }
+        }
     }
 
     /**
@@ -127,7 +155,6 @@ public abstract class BaseTopic implements Topic{
     @Override
     public void sendMessage(List<Message> messages, String key) {
         ((BasePartition)getRouter().route(partitions, key)).pushMessage(messages);
-
     }
 
     /**
@@ -142,14 +169,13 @@ public abstract class BaseTopic implements Topic{
     }
 
     /**
-     * 选择订阅量最少的partition来消费
+     * 随机选择partition来消费
      * @return
      */
     @Override
     public List<Message> getMessage() {
-
-        //choose Min-SubscribeNum  partition
-        return ((BasePartition)getRouter().route(LoadBalance.LoadBalanceStrategy.MIN_LB, partitions)).pullMessage();
+        //choose partition randomly
+        return ((BasePartition)getRouter().route(LoadBalance.LoadBalanceStrategy.RANDOM, partitions)).pullMessage();
     }
 
 }

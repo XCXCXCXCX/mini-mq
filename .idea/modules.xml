@@ -4,10 +4,13 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/mini-mq.iml" filepath="$PROJECT_DIR$/mini-mq.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-api/mini-mq-api.iml" filepath="$PROJECT_DIR$/mini-mq-api/mini-mq-api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mini-mq-client/mini-mq-client.iml" filepath="$PROJECT_DIR$/mini-mq-client/mini-mq-client.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-common/mini-mq-common.iml" filepath="$PROJECT_DIR$/mini-mq-common/mini-mq-common.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-core/mini-mq-core.iml" filepath="$PROJECT_DIR$/mini-mq-core/mini-mq-core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mini-mq-monitor/mini-mq-monitor.iml" filepath="$PROJECT_DIR$/mini-mq-monitor/mini-mq-monitor.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-network/mini-mq-network.iml" filepath="$PROJECT_DIR$/mini-mq-network/mini-mq-network.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-persistence/mini-mq-persistence.iml" filepath="$PROJECT_DIR$/mini-mq-persistence/mini-mq-persistence.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mini-mq-registry/mini-mq-registry.iml" filepath="$PROJECT_DIR$/mini-mq-registry/mini-mq-registry.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-tools/mini-mq-tools.iml" filepath="$PROJECT_DIR$/mini-mq-tools/mini-mq-tools.iml" />
     </modules>
   </component>

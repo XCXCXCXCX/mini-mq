@@ -72,8 +72,8 @@ public interface PersistenceService<T> {
      * 如果不存在，表示是第一次prePull，插入记录（#{mid},#{consumerGroupId},1，now() + #{expired},2）
      * 如果存在，
      * 筛选出
-     * expired < now() and pulledTimes < maxTimes and status = 2（表示是处理过但已超时又还未被标记为dead message）
-     * or： pulledTimes < maxTimes and status = 4 (表示是处理过但已拒绝又还未被标记为dead message)
+     * expired < now() and pulledTimes < maxTimes and status = 2（表示是处理过但已超时又还未被标记为dead message） 此类消息不作处理，等待客户端“对账”请求时处理
+     * pulledTimes < maxTimes and status = 4 (表示是处理过但已拒绝又还未被标记为dead message) 此类消息作处理
      * 更新记录（#{mid},#{consumerGroupId},pulledTimes++,now() + #{expired},2）
      *
      * 此时status=2，表示消息对于consumerGroupId的状态为“正在处理中”
@@ -81,13 +81,22 @@ public interface PersistenceService<T> {
      *
      * @param topicId
      * @param consumerGroupId
+     * @param key
      * @param pageNum
      * @param pageSize
      * @return
      */
-    List<T> prePullIfAbsent(String topicId, String consumerGroupId, Integer pageNum, Integer pageSize);
+    List<T> prePullIfAbsent(String topicId,
+                            String consumerGroupId,
+                            String key,
+                            Integer pageNum,
+                            Integer pageSize);
 
-    List<T> prePull(String topicId, String consumerGroupId, Integer pageNum, Integer pageSize);
+    List<T> prePull(String topicId,
+                    String consumerGroupId,
+                    String key,
+                    Integer pageNum,
+                    Integer pageSize);
 
     /**
      * 根据id和consumerGroupId确认消息

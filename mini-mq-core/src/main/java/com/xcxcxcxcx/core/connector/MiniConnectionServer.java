@@ -4,14 +4,14 @@ import com.xcxcxcxcx.core.connector.channel.ServerChannelHandler;
 import com.xcxcxcxcx.mini.api.connector.command.Command;
 import com.xcxcxcxcx.mini.api.connector.connection.ConnectionManager;
 import com.xcxcxcxcx.mini.api.connector.message.PacketDispatcher;
-import com.xcxcxcxcx.mini.common.handler.PullAckHandler;
-import com.xcxcxcxcx.mini.common.handler.PullHandler;
-import com.xcxcxcxcx.mini.common.handler.PushAckHandler;
-import com.xcxcxcxcx.mini.common.handler.PushHandler;
-import com.xcxcxcxcx.mini.common.message.wrapper.DefaultPacketDispatcher;
+import com.xcxcxcxcx.mini.api.connector.session.SessionManager;
+import com.xcxcxcxcx.mini.common.message.DefaultPacketDispatcher;
+import com.xcxcxcxcx.mini.common.message.handler.*;
+import com.xcxcxcxcx.mini.common.topic.BrokerContext;
 import com.xcxcxcxcx.mini.tools.config.MiniConfig;
 import com.xcxcxcxcx.mini.tools.thread.ThreadPoolManager;
 import com.xcxcxcxcx.network.connection.NettyConnectionManager;
+import com.xcxcxcxcx.network.connection.session.ServerSessionManager;
 import com.xcxcxcxcx.network.server.NettyTcpServer;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelHandler;
@@ -29,8 +29,9 @@ import java.util.concurrent.ScheduledExecutorService;
  */
 public class MiniConnectionServer extends NettyTcpServer{
 
-
     private final ConnectionManager connectionManager;
+
+    private final SessionManager sessionManager;
 
     private final PacketDispatcher packetDispatcher;
 
@@ -66,13 +67,26 @@ public class MiniConnectionServer extends NettyTcpServer{
         this.connectionManager = new NettyConnectionManager();
 
         /**
+         * sessionManager初始化
+         */
+        this.sessionManager = new ServerSessionManager();
+
+        /**
          * packetDispatcher初始化
          */
         this.packetDispatcher = new DefaultPacketDispatcher();
+        packetDispatcher.register(Command.HEARTBEAT, new HeartbeatHandler());
         packetDispatcher.register(Command.PUSH, new PushHandler());
         packetDispatcher.register(Command.PULL, new PullHandler());
-        packetDispatcher.register(Command.PUSH_ACK_RESPONSE, new PushAckHandler());
-        packetDispatcher.register(Command.PULL_ACK_RESPONSE, new PullAckHandler());
+        packetDispatcher.register(Command.PUSH_ACK, new PushAckHandler());
+        packetDispatcher.register(Command.PULL_ACK, new PullAckHandler());
+        packetDispatcher.register(Command.HAND_SHAKE, new HandshakeHandler(sessionManager));
+        packetDispatcher.register(Command.HAND_SHAKE_OK, new HandshakeOKHandler(sessionManager));
+
+        /**
+         * BrokerContext初始化
+         */
+        BrokerContext.init();
 
         /**
          * channelHandler初始化

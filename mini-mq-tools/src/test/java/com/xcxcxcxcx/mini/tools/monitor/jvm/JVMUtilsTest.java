@@ -13,7 +13,7 @@ public class JVMUtilsTest {
 
     @Test
     public void dump() throws IOException {
-        JVMUtils.dump(MiniConfig.mini.monitor.jvm.jvm_dump_dir);
+        JVMUtils.dump();
         System.in.read();
     }
 }

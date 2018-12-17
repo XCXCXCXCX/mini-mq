@@ -24,14 +24,14 @@ public abstract class BasePartition implements Partition{
     private static final int MAX_POLL_MESSAGE_NUM = MiniConfig.mini.partition.max_poll_message_num;
 
 
-    private final Topic topic;
+    private final String topicId;
 
     private final int id;
 
     private final Queue<Message> queue = new ConcurrentLinkedQueue<>();
 
-    public BasePartition(Topic topic, int id) {
-        this.topic = topic;
+    public BasePartition(String topicId, int id) {
+        this.topicId = topicId;
         this.id = id;
     }
 
@@ -41,13 +41,18 @@ public abstract class BasePartition implements Partition{
     }
 
     @Override
-    public Topic getTopic() {
-        return topic;
+    public String getTopicId() {
+        return topicId;
     }
 
     @Override
     public int getId() {
         return id;
+    }
+
+    @Override
+    public int getMessageSum() {
+        return queue.size();
     }
 
     @Override
@@ -109,5 +114,9 @@ public abstract class BasePartition implements Partition{
             return true;
         }
         return false;
+    }
+
+    public void destroy(){
+        queue.clear();
     }
 }

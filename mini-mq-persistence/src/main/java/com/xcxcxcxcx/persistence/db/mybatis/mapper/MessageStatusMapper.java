@@ -39,6 +39,7 @@ public interface MessageStatusMapper {
      */
     List<Long> queryAbsent(@Param("topicId") String topicId,
                            @Param("consumerGroupId") String consumerGroupId,
+                           @Param("key") String key,
                            @Param("pageNum") Integer pageNum,
                            @Param("pageSize") Integer pageSize);
 
@@ -52,6 +53,7 @@ public interface MessageStatusMapper {
      */
     List<Message> queryNotAbsent(@Param("topicId") String topicId,
                                  @Param("consumerGroupId") String consumerGroupId,
+                                 @Param("key") String key,
                                  @Param("pageNum") Integer pageNum,
                                  @Param("pageSize") Integer pageSize);
 

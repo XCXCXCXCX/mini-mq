@@ -1,6 +1,6 @@
 package com.xcxcxcxcx.mini.api.client;
 
-import java.util.Properties;
+import java.util.Map;
 
 /**
  *
@@ -14,13 +14,9 @@ public final class Role {
 
     public static final String CONSUMER ="consumer";
 
-    public static final String PRODUCER_AND_CONSUMER = "producer&consumer";
-
     private String roleName;
 
-    private Properties producerConfig;
-
-    private Properties consumerConfig;
+    private Map<String, Object> config;
 
     public String getRoleName() {
         return roleName;
@@ -30,19 +26,11 @@ public final class Role {
         this.roleName = roleName;
     }
 
-    public Properties getProducerConfig() {
-        return producerConfig;
+    public Map<String, Object> getConfig() {
+        return config;
     }
 
-    public void setProducerConfig(Properties producerConfig) {
-        this.producerConfig = producerConfig;
-    }
-
-    public Properties getConsumerConfig() {
-        return consumerConfig;
-    }
-
-    public void setConsumerConfig(Properties consumerConfig) {
-        this.consumerConfig = consumerConfig;
+    public void setConfig(Map<String, Object> config) {
+        this.config = config;
     }
 }

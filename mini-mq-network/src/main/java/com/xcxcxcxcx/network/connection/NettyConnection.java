@@ -4,6 +4,7 @@ import com.xcxcxcxcx.mini.api.connector.connection.Connection;
 import com.xcxcxcxcx.mini.api.connector.message.Packet;
 import com.xcxcxcxcx.mini.api.connector.session.SessionContext;
 import com.xcxcxcxcx.mini.tools.log.LogUtils;
+import com.xcxcxcxcx.network.connection.session.ServerSessionManager;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -36,7 +37,7 @@ public final class NettyConnection implements Connection,ChannelFutureListener {
      */
     public NettyConnection(Channel channel) {
         this.channel = channel;
-        this.context = new SessionContext();
+        this.context = ServerSessionManager.newSession();
         long current = System.currentTimeMillis();
         this.lastReadTime = current;
         this.lastWriteTime = current;

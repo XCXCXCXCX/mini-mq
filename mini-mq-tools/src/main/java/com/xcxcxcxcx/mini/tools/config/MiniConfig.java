@@ -37,11 +37,24 @@ public interface MiniConfig {
         /**
          * dataSource config
          */
+        interface registry {
+
+            Config registry = mini.getObject("registry").toConfig();
+
+            String serverHost = registry.getString("server-host");
+            int serverPort = registry.getInt("server-port");
+            String connectString = registry.getString("connect-string");
+
+        }
+
+        /**
+         * dataSource config
+         */
         interface dataSource {
 
             Config dataSource = mini.getObject("dataSource").toConfig();
 
-            String driverClassName = dataSource.getString("driverClassName");
+            String driverClassName = dataSource.getString("driver-class-name");
             String url = dataSource.getString("url");
             String username = dataSource.getString("username");
             String password = dataSource.getString("password");
@@ -135,6 +148,8 @@ public interface MiniConfig {
 
             Config monitor = mini.getObject("monitor").toConfig();
 
+            Boolean enable_timing_dump = mini.getBoolean("enable-timing-dump");
+
             interface flowcontrol{
 
                 Config flowcontrol = monitor.getObject("flowcontrol").toConfig();
@@ -160,7 +175,10 @@ public interface MiniConfig {
 
                 Config jvm = monitor.getObject("jvm").toConfig();
 
+                Boolean enable_jvm_monitor = jvm.getBoolean("enable-jvm-monitor");
                 String jvm_dump_dir = jvm.getString("jvm-dump-dir");
+                Duration jvm_dump_period = jvm.getDuration("jvm-dump-period");
+
             }
 
             /**
@@ -177,6 +195,8 @@ public interface MiniConfig {
                 String cost_dump_path = cost.getString("cost-dump-path");
 
                 Boolean enable_print = cost.getBoolean("enable-print");
+
+                Duration cost_dump_period = cost.getDuration("cost-dump-period");
             }
         }
 

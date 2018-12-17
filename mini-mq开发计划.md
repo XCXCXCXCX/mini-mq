@@ -85,7 +85,7 @@
 
 
 
-### common模块开发
+### common模块开发（√）
 
 提供底层通用类：
 
@@ -102,28 +102,28 @@
 
 
 
-### monitor模块开发
+### monitor模块开发（√）
 
 提供监控类：
 
-1. jvm信息定期dump
-2. 线程信息和线程状态统计
-3. 线程池配置和线程池状态统计
-4. 流量监控
+1. jvm信息定期dump（√）
+2. 线程信息和线程状态统计（√）
+3. 线程池配置和线程池状态统计（√）
+4. 流量监控（√）
 
 
 
-### registry模块开发
+### registry模块开发（√）
 
 提供服务注册/发现功能：
 
-1. 通用注册中心类
-2. zk实现类
-3. 提供服务注册/发现的接口
+1. 通用注册中心类（√）
+2. zk实现类（√）
+3. 提供服务注册/发现的接口（√）
 
 
 
-### core模块开发
+### core模块开发（√）
 
 提供核心功能：
 
@@ -140,10 +140,10 @@
 1. 创建producer并连接到broker
 2. 创建consumer并连接到broker
 3. 创建/删除/查看topic
-4. producer send接口
-5. consumer receive接口
-6. consumer receiveAck接口
-7. producer/consumer配置类
+4. producer send接口（√）
+5. consumer receive接口（√）
+6. consumer receiveAck接口（√）
+7. producer/consumer配置类（√）
 
 
 

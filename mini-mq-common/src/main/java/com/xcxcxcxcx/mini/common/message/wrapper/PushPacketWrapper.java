@@ -2,7 +2,8 @@ package com.xcxcxcxcx.mini.common.message.wrapper;
 
 import com.xcxcxcxcx.mini.api.connector.connection.Connection;
 import com.xcxcxcxcx.mini.api.connector.message.Packet;
-import com.xcxcxcxcx.mini.common.message.entity.Push;
+import com.xcxcxcxcx.mini.api.connector.message.wrapper.BasePacketWrapper;
+import com.xcxcxcxcx.mini.api.connector.message.entity.Push;
 
 /**
  *
@@ -10,7 +11,7 @@ import com.xcxcxcxcx.mini.common.message.entity.Push;
  * @author XCXCXCXCX
  * @since 1.0
  */
-public final class PushPacketWrapper extends BasePacketWrapper<Push>{
+public final class PushPacketWrapper extends BasePacketWrapper<Push> {
 
     public PushPacketWrapper(Connection connection, Packet packet) {
         super(connection, packet);

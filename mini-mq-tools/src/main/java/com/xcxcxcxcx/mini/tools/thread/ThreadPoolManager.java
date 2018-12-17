@@ -19,8 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class ThreadPoolManager implements ThreadFactory {
 
-    private static final Executor executor = null;
-            //ExecutorFactory.create();
+    private static final Executor executor = ExecutorFactory.create();
 
     private ThreadGroup group;
     private static final Map<String, ThreadGroup> threadGroups = new ConcurrentHashMap<>();
@@ -47,6 +46,14 @@ public final class ThreadPoolManager implements ThreadFactory {
         //this.group = threadGroups.putIfAbsent(groupName, new ThreadGroup(groupName));
 
         this.name_prefix = group.getName();
+    }
+
+    public static Map<String, java.util.concurrent.Executor> getAllExecutors() {
+        return executor.getAll();
+    }
+
+    public static Map<String, ThreadGroup> getThreadGroups() {
+        return threadGroups;
     }
 
     @Override
@@ -77,7 +84,7 @@ public final class ThreadPoolManager implements ThreadFactory {
      *
      * @return
      */
-    public java.util.concurrent.Executor getExecutor(String name) {
+    public static java.util.concurrent.Executor getExecutor(String name) {
         return executor.get(name);
     }
 
@@ -87,7 +94,7 @@ public final class ThreadPoolManager implements ThreadFactory {
      * @param config
      * @return
      */
-    public java.util.concurrent.Executor getExecutor(ThreadPoolConfig config) {
+    public static java.util.concurrent.Executor getExecutor(ThreadPoolConfig config) {
         return executor.get(config);
     }
 

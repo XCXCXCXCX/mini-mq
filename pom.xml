@@ -15,6 +15,9 @@
         <module>mini-mq-api</module>
         <module>mini-mq-network</module>
         <module>mini-mq-persistence</module>
+        <module>mini-mq-monitor</module>
+        <module>mini-mq-client</module>
+        <module>mini-mq-registry</module>
     </modules>
 
     <properties>

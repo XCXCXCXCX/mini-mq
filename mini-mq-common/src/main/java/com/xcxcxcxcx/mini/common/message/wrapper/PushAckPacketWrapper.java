@@ -2,13 +2,14 @@ package com.xcxcxcxcx.mini.common.message.wrapper;
 
 import com.xcxcxcxcx.mini.api.connector.connection.Connection;
 import com.xcxcxcxcx.mini.api.connector.message.Packet;
-import com.xcxcxcxcx.mini.common.message.entity.PushAck;
+import com.xcxcxcxcx.mini.api.connector.message.wrapper.BasePacketWrapper;
+import com.xcxcxcxcx.mini.api.connector.message.entity.PushAck;
 
 /**
  * @author XCXCXCXCX
  * @since 1.0
  */
-public class PushAckPacketWrapper extends BasePacketWrapper<PushAck>{
+public final class PushAckPacketWrapper extends BasePacketWrapper<PushAck> {
 
     public PushAckPacketWrapper(Connection connection, Packet packet) {
         super(connection, packet);

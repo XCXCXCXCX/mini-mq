@@ -1,6 +1,7 @@
 package com.xcxcxcxcx.mini.tools.monitor.jvm;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
+import com.xcxcxcxcx.mini.tools.config.MiniConfig;
 import com.xcxcxcxcx.mini.tools.thread.ThreadManager;
 import com.xcxcxcxcx.mini.tools.thread.ThreadPoolManager;
 import org.slf4j.Logger;
@@ -68,10 +69,11 @@ public final class JVMUtils {
 
     /**
      * 对外提供的dump接口，启动两个线程分别dump jstack和jmap
-     * @param jvmPath
      */
-    public static void dump(final String jvmPath){
-        doDump(jvmPath);
+    public static void dump(){
+        if(MiniConfig.mini.monitor.jvm.enable_jvm_monitor){
+            doDump(MiniConfig.mini.monitor.jvm.jvm_dump_dir);
+        }
     }
 
     private static void doDump(final String jvmPath) {

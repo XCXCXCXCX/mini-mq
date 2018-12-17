@@ -1,13 +1,15 @@
 package com.xcxcxcxcx.mini.api.connector.message;
 
 
+import java.io.Serializable;
+
 /**
  *
  * 消息实体，对应数据库表的row
  * @author XCXCXCXCX
  * @since 1.0
  */
-public final class Message {
+public final class Message implements Serializable{
 
     /**
      * 全局唯一的消息ID
@@ -30,11 +32,9 @@ public final class Message {
     private Integer status;
 
     /**
-     * 被pull的次数
-     * 从新建态->正在处理态时会增加pull次数
-     * 超过指定次数，将不会再被pull
+     * 用于路由的key
      */
-    //private Integer pulledTimes;
+    private String key;
 
     /**
      * 超时时间
@@ -73,6 +73,14 @@ public final class Message {
 
     public void setStatus(Integer status) {
         this.status = status;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public void setKey(String key) {
+        this.key = key;
     }
 
     public Long getExpired() {

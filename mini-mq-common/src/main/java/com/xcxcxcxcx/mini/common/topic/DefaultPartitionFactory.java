@@ -18,7 +18,7 @@ public final class DefaultPartitionFactory implements Factory<BasePartition>{
 
     @Override
     public BasePartition create() {
-        return new DefaultPartition(topic, topic.getAndIncr());
+        return new DefaultPartition(topic.getId(), topic.getAndIncr());
     }
 
     public List<BasePartition> createList(int size) {

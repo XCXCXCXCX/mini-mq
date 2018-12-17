@@ -162,18 +162,24 @@ public class DbService implements PersistenceService<Message> {
      * 第一次pull，插入记录
      * @param topicId
      * @param consumerGroupId
+     * @param key
      * @param pageNum
      * @param pageSize
      * @return
      */
     @Override
-    public List<Message> prePullIfAbsent(String topicId, String consumerGroupId, Integer pageNum, Integer pageSize) {
+    public List<Message> prePullIfAbsent(String topicId,
+                                         String consumerGroupId,
+                                         String key,
+                                         Integer pageNum,
+                                         Integer pageSize) {
         SqlSession session = sqlSessionFactory.openSession(false);
         MessageMapper messageMapper = session.getMapper(MessageMapper.class);
         MessageStatusMapper messageStatusMapper = session.getMapper(MessageStatusMapper.class);
 
         try {
-            List<Long> messageIds = messageStatusMapper.queryAbsent(topicId,consumerGroupId,pageNum,pageSize);
+            List<Long> messageIds = messageStatusMapper.
+                    queryAbsent(topicId,consumerGroupId,key,pageNum,pageSize);
             List<MessageStatusEntity> messageStatusEntities = messageIds.stream()
                     .map(id -> {
                         MessageStatusEntity entity = new MessageStatusEntity();
@@ -193,21 +199,27 @@ public class DbService implements PersistenceService<Message> {
     }
 
     /**
-     * 不是第一次pull，更新记录
+     * 不是第一次pull，筛选出被客户端确认拒绝的消息，重试消费
      * @param topicId
      * @param consumerGroupId
+     * @param key
      * @param pageNum
      * @param pageSize
      * @return
      */
     @Override
-    public List<Message> prePull(String topicId, String consumerGroupId, Integer pageNum, Integer pageSize) {
+    public List<Message> prePull(String topicId,
+                                 String consumerGroupId,
+                                 String key,
+                                 Integer pageNum,
+                                 Integer pageSize) {
         SqlSession session = sqlSessionFactory.openSession(false);
         MessageMapper messageMapper = session.getMapper(MessageMapper.class);
         MessageStatusMapper messageStatusMapper = session.getMapper(MessageStatusMapper.class);
 
         try {
-            List<Message> messages = messageStatusMapper.queryNotAbsent(topicId,consumerGroupId,pageNum,pageSize);
+            List<Message> messages = messageStatusMapper.
+                    queryNotAbsent(topicId,consumerGroupId,key,pageNum,pageSize);
             List<Long> ids = messages.stream()
                     .map(message -> message.getMid()).collect(Collectors.toList());
             messageStatusMapper.batchUpdate(ids, consumerGroupId, MESSAGE_MAX_PULLED,

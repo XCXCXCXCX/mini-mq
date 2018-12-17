@@ -22,4 +22,9 @@ public interface JsonSerializationService {
      * @return
      */
     byte[] toJson(Object json);
+
+    /**
+     * String 转 对象
+     */
+    <T> T parseObject(String content, Class<T> clazz);
 }

@@ -1,10 +1,14 @@
 package com.xcxcxcxcx.core.connector.channel;
 
+import com.xcxcxcxcx.mini.api.client.Role;
 import com.xcxcxcxcx.mini.api.connector.connection.Connection;
 import com.xcxcxcxcx.mini.api.connector.connection.ConnectionFactory;
 import com.xcxcxcxcx.mini.api.connector.connection.ConnectionManager;
 import com.xcxcxcxcx.mini.api.connector.message.Packet;
 import com.xcxcxcxcx.mini.api.connector.message.PacketDispatcher;
+import com.xcxcxcxcx.mini.api.connector.session.SessionContext;
+import com.xcxcxcxcx.mini.common.topic.BrokerContext;
+import com.xcxcxcxcx.mini.common.topic.entity.ConsumerEntity;
 import com.xcxcxcxcx.mini.tools.log.LogUtils;
 import com.xcxcxcxcx.mini.tools.monitor.cost.CostUtils;
 import com.xcxcxcxcx.network.connection.NettyConnection;
@@ -56,6 +60,19 @@ public class ServerChannelHandler extends ChannelInboundHandlerAdapter{
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        Connection connection = connectionFactory.create(ctx.channel());
+        if(connection != null){
+            //如果是经过握手后建立的连接，且是消费者
+            SessionContext sessionContext = connection.getSessionContext();
+            if(Role.CONSUMER.equals(sessionContext.getRoleName())){
+                //退出当前消费组
+                BrokerContext.leaveGroup(ConsumerEntity.build()
+                        .setId(sessionContext.getId())
+                        .setIdInGroup(sessionContext.getIdInGroup())
+                        .setTopicId(sessionContext.getTopicId()));
+            }
+        }
+
         connectionManager.removeAndCloseConnection(ctx.channel());
         LogUtils.connection.info("client disconnected conn={}", ctx.channel());
     }
@@ -91,6 +108,16 @@ public class ServerChannelHandler extends ChannelInboundHandlerAdapter{
         Connection connection = connectionManager.getConnection(ctx.channel());
         LogUtils.connection.error("client caught ex, conn={}", connection);
         LOGGER.error("caught an ex, channel={}, conn={}", ctx.channel(), connection, cause);
+        //如果是经过握手后建立的连接，且是消费者
+        SessionContext sessionContext = connection.getSessionContext();
+        if(Role.CONSUMER.equals(sessionContext.getRoleName())){
+            //退出当前消费组
+            BrokerContext.leaveGroup(ConsumerEntity.build()
+                    .setId(sessionContext.getId())
+                    .setIdInGroup(sessionContext.getIdInGroup())
+                    .setTopicId(sessionContext.getTopicId()));
+        }
+        connection.close();
         ctx.close();
     }
 }

@@ -8,12 +8,13 @@
         <id column="mid" property="mid" jdbcType="BIGINT"/>
         <result column="topicId" property="topicId" jdbcType="VARCHAR"/>
         <result column="expired" property="expired" jdbcType="BIGINT"/>
+        <result column="key" property="key" jdbcType="VARCHAR"/>
         <result column="status" property="status" jdbcType="INTEGER"/>
         <result column="content" property="content" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="Base_Column_List">
-        mid, topicId, expired, status, content
+        mid, topicId, expired, key, status, content
     </sql>
 
     <!-- 批量插入message -->
@@ -25,6 +26,7 @@
           (#{message.mid,jdbcType=BIGINT},
             #{message.topicId,jdbcType=VARCHAR},
             #{message.expired,jdbcType=BIGINT},
+            #{message.key,jdbcType=VARCHAR},
             #{message.status,jdbcType=INTEGER},
             #{message.content,jdbcType=VARCHAR})
         </foreach >

@@ -9,8 +9,8 @@ import com.xcxcxcxcx.mini.api.connector.topic.Topic;
  */
 public class DefaultPartition extends BasePartition{
 
-    public DefaultPartition(Topic topic, int id) {
-        super(topic, id);
+    public DefaultPartition(String topicId, int id) {
+        super(topicId, id);
     }
 
     @Override
@@ -32,4 +32,5 @@ public class DefaultPartition extends BasePartition{
     public int getPublishNum() {
         return 0;
     }
+
 }

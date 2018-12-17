@@ -1,14 +1,9 @@
 package com.xcxcxcxcx.mini.api.connector.topic;
 
-import com.xcxcxcxcx.mini.api.client.Consumer;
-import com.xcxcxcxcx.mini.api.client.Partner;
-import com.xcxcxcxcx.mini.api.client.Producer;
 import com.xcxcxcxcx.mini.api.connector.message.Message;
 import com.xcxcxcxcx.mini.api.spi.router.Router;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 
 /**
  *
@@ -49,30 +44,19 @@ public interface Topic {
      */
     Router getRouter();
 
-    /**
-     * 该topic的生产者
-     * @return
-     */
-    Map<String, Producer> getProducers();
+    int subscribe(String consumerId);
 
-    /**
-     * 该topic的消费者
-     * @return
-     */
-    Map<String, Consumer> getConsumers();
+    int unsubscribe(String consumerId);
 
-    /**
-     * 根据角色配置加入到topic中
-     * @param partner {@link Partner}
-     * @param roleProperties
-     */
-    void join(Partner partner, Properties roleProperties);
+    void sendMessage(Message message);
 
     /**
      * 发送消息
      * @return
      */
     void sendMessage(List<Message> messages);
+
+    void sendMessage(Message message, String key);
 
     void sendMessage(List<Message> messages, String key);
 
@@ -84,4 +68,10 @@ public interface Topic {
     List<Message> getMessage();
 
     List<Message> getMessage(String key);
+
+    int getSubscribeNum();
+
+    int getMessageSum();
+
+    void destroy();
 }

@@ -27,6 +27,11 @@
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>mini-mq-registry</artifactId>
+            <version>${parent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>mini-mq-common</artifactId>
             <version>${parent.version}</version>
         </dependency>

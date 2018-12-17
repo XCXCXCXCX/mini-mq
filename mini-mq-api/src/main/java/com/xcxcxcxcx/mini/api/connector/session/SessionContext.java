@@ -1,6 +1,5 @@
 package com.xcxcxcxcx.mini.api.connector.session;
 
-import com.xcxcxcxcx.mini.api.client.Partner;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -17,15 +16,28 @@ public final class SessionContext {
      */
     public static final int heartbeat = 10 * 1000;
 
-    /**
-     * 应用名
-     */
-    private String applicationName;
+    private int sessionId;
 
     /**
-     * 生产者或消费者或两者都是
+     * 角色id
      */
-    private Partner partner;
+    private String id;
+
+    /**
+     * idInGroup
+     * 只有消费者持有
+     */
+    private int idInGroup;
+
+    /**
+     * 订阅的topicId
+     */
+    private String topicId;
+
+    /**
+     * 角色类型：生产者或消费者
+     */
+    private String roleName;
 
     private AtomicReference<SessionStatus> status;
 
@@ -33,20 +45,44 @@ public final class SessionContext {
         initStatus();
     }
 
-    public String getApplicationName() {
-        return applicationName;
+    public int getSessionId() {
+        return sessionId;
     }
 
-    public void setApplicationName(String applicationName) {
-        this.applicationName = applicationName;
+    public void setSessionId(int sessionId) {
+        this.sessionId = sessionId;
     }
 
-    public Partner getPartner() {
-        return partner;
+    public String getId() {
+        return id;
     }
 
-    public void setPartner(Partner partner) {
-        this.partner = partner;
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public int getIdInGroup() {
+        return idInGroup;
+    }
+
+    public void setIdInGroup(int idInGroup) {
+        this.idInGroup = idInGroup;
+    }
+
+    public String getTopicId() {
+        return topicId;
+    }
+
+    public void setTopicId(String topicId) {
+        this.topicId = topicId;
+    }
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
     }
 
     public SessionStatus getStatus(){

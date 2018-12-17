@@ -43,7 +43,7 @@ public abstract class NettyTcpClient extends BaseService implements Client {
     private static final int DEFAULT_WORKER_IO_RATIO = 50;
 
     public NettyTcpClient(int port) {
-        this.port = port;
+        this(null, port);
     }
 
     public NettyTcpClient(String host, int port) {

@@ -21,17 +21,15 @@ public interface Partition {
      */
     Queue getQueue();
 
-    /**
-     * 每个partition属于唯一一个topic
-     * @return
-     */
-    Topic getTopic();
+    String getTopicId();
 
     /**
      * 每个partition在topic中有一个唯一的id
      * @return
      */
     int getId();
+
+    int getMessageSum();
 
     /**
      * 订阅和取消订阅

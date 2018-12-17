@@ -8,11 +8,6 @@ package com.xcxcxcxcx.mini.api.connector.session;
 public interface SessionManager {
 
     /**
-     * 创建会话
-     */
-    SessionContext newSession(int sessionId);
-
-    /**
      * 会话建立成功
      */
     SessionContext openSession(int sessionId);
