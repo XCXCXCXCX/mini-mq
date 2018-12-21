@@ -10,6 +10,7 @@
         <module name="mini-mq-client" />
         <module name="mini-mq-common" />
         <module name="mini-mq-core" />
+        <module name="mini-mq-demo" />
         <module name="mini-mq-monitor" />
         <module name="mini-mq-network" />
         <module name="mini-mq-persistence" />
@@ -24,6 +25,7 @@
       <module name="mini-mq-client" target="1.8" />
       <module name="mini-mq-common" target="1.8" />
       <module name="mini-mq-core" target="1.8" />
+      <module name="mini-mq-demo" target="1.8" />
       <module name="mini-mq-monitor" target="1.8" />
       <module name="mini-mq-network" target="1.8" />
       <module name="mini-mq-persistence" target="1.8" />

@@ -18,7 +18,7 @@
         <module>mini-mq-monitor</module>
         <module>mini-mq-client</module>
         <module>mini-mq-registry</module>
-        <module>minimq-demo</module>
+        <module>mini-mq-demo</module>
     </modules>
 
     <properties>
