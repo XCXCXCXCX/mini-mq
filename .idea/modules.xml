@@ -12,6 +12,7 @@
       <module fileurl="file://$PROJECT_DIR$/mini-mq-persistence/mini-mq-persistence.iml" filepath="$PROJECT_DIR$/mini-mq-persistence/mini-mq-persistence.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-registry/mini-mq-registry.iml" filepath="$PROJECT_DIR$/mini-mq-registry/mini-mq-registry.iml" />
       <module fileurl="file://$PROJECT_DIR$/mini-mq-tools/mini-mq-tools.iml" filepath="$PROJECT_DIR$/mini-mq-tools/mini-mq-tools.iml" />
+      <module fileurl="file://$PROJECT_DIR$/minimq-demo/minimq-demo.iml" filepath="$PROJECT_DIR$/minimq-demo/minimq-demo.iml" />
     </modules>
   </component>
 </project>

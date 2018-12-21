@@ -10,7 +10,9 @@ import java.util.UUID;
  */
 public class CommonServiceNode implements ServiceNode {
 
-    private String serviceName;
+    private static final String SERVER_NAME = "brokers";
+
+    private String serviceName = SERVER_NAME;
 
     private String id;
 
@@ -18,18 +20,12 @@ public class CommonServiceNode implements ServiceNode {
 
     private int port;
 
-    public void setServiceName(String serviceName) {
-        this.serviceName = serviceName;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
+    @Override
     public void setHost(String host) {
         this.host = host;
     }
 
+    @Override
     public void setPort(int port) {
         this.port = port;
     }

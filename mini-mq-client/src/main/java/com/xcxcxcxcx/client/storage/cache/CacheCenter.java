@@ -33,6 +33,9 @@ public final class CacheCenter implements MessageStorage {
      */
     @Override
     public void remotePush(List<MessageInfo> messageInfos) {
+        if(messageInfos == null || messageInfos.isEmpty()){
+            return;
+        }
         for (MessageInfo info : messageInfos) {
             messageInfoMap1.putIfAbsent(info.getId().longValue(), info);
         }
@@ -45,6 +48,9 @@ public final class CacheCenter implements MessageStorage {
      */
     @Override
     public void localPushAck(List<Long> ids) {
+        if(ids == null || ids.isEmpty()){
+            return;
+        }
         for (Long id : ids) {
             messageInfoMap1.get(id).setStatus(1);
         }
@@ -57,9 +63,16 @@ public final class CacheCenter implements MessageStorage {
      */
     @Override
     public void remotePushAck(List<Long> ids) {
+        if(ids == null || ids.isEmpty()){
+            return;
+        }
         synchronized (messageInfoMap1) {
             for (Long id : ids) {
-                if (messageInfoMap1.get(id).getStatus() == 1) {
+                MessageInfo messageInfo = messageInfoMap1.get(id);
+                if(messageInfo == null){
+                    continue;
+                }
+                if (messageInfo.getStatus() == 1) {
                     messageInfoMap1.remove(id);
                 }
             }
@@ -91,6 +104,9 @@ public final class CacheCenter implements MessageStorage {
      */
     @Override
     public void remotePull(List<MessageInfo> messageInfos) {
+        if(messageInfos == null || messageInfos.isEmpty()){
+            return;
+        }
         for (MessageInfo info : messageInfos) {
             messageInfoMap2.putIfAbsent(info.getId().longValue(), info);
         }
@@ -103,6 +119,9 @@ public final class CacheCenter implements MessageStorage {
      */
     @Override
     public void localPullAck(List<Long> ids) {
+        if(ids == null){
+            return;
+        }
         for (Long id : ids) {
             messageInfoMap2.get(id).setStatus(3);
         }
@@ -110,6 +129,9 @@ public final class CacheCenter implements MessageStorage {
 
     @Override
     public void localPullReject(List<Long> ids) {
+        if(ids == null){
+            return;
+        }
         for (Long id : ids) {
             messageInfoMap2.get(id).setStatus(4);
         }
@@ -122,9 +144,16 @@ public final class CacheCenter implements MessageStorage {
      */
     @Override
     public void remotePullAck(List<Long> ids) {
+        if(ids == null){
+            return;
+        }
         synchronized (messageInfoMap2) {
             for (Long id : ids) {
-                if (messageInfoMap2.get(id).getStatus() == 3) {
+                MessageInfo messageInfo = messageInfoMap2.get(id);
+                if(messageInfo == null){
+                    continue;
+                }
+                if (messageInfo.getStatus() == 3) {
                     messageInfoMap2.remove(id);
                 }
             }
@@ -133,9 +162,16 @@ public final class CacheCenter implements MessageStorage {
 
     @Override
     public void remotePullReject(List<Long> ids) {
+        if(ids == null){
+            return;
+        }
         synchronized (messageInfoMap2) {
             for (Long id : ids) {
-                if (messageInfoMap2.get(id).getStatus() == 4) {
+                MessageInfo messageInfo = messageInfoMap2.get(id);
+                if(messageInfo == null){
+                    continue;
+                }
+                if (messageInfo.getStatus() == 4) {
                     messageInfoMap2.remove(id);
                 }
             }

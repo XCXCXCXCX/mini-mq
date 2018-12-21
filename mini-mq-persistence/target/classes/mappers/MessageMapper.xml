@@ -14,7 +14,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        mid, topicId, expired, key, status, content
+        mid, topicId, expired, message.key, status, content
     </sql>
 
     <!-- 批量插入message -->
@@ -22,7 +22,7 @@
             parameterType="java.util.ArrayList">
     INSERT INTO message (<include refid="Base_Column_List"/>)
     VALUES
-        <foreach collection ="list" item="message" separator =",">
+        <foreach collection ="messageList" item="message" separator =",">
           (#{message.mid,jdbcType=BIGINT},
             #{message.topicId,jdbcType=VARCHAR},
             #{message.expired,jdbcType=BIGINT},
@@ -65,7 +65,9 @@
     </delete>
 
     <!-- 根据id查id,用于验证数据是否成功插入 -->
-    <select id="queryIdById" parameterType="java.util.ArrayList">
+    <select id="queryIdById"
+            parameterType="java.util.ArrayList"
+            resultType="java.lang.Long">
         SELECT mid
         FROM message
         <where>
@@ -82,7 +84,10 @@
     </select>
 
     <!-- 根据id查记录 -->
-    <select id="queryById" parameterType="java.util.ArrayList">
+    <select id="queryById"
+            parameterType="java.util.ArrayList"
+            resultMap="BaseResultMap"
+            resultType="java.util.ArrayList">
         SELECT <include refid="Base_Column_List"/>
         FROM message
         <where>

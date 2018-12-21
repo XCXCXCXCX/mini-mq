@@ -29,6 +29,7 @@ public final class ServerSessionManager implements SessionManager{
     public static SessionContext newSession() {
         SessionContext sessionContext = new SessionContext();
         int sessionId = getSessionId();
+        sessionContext.setSessionId(sessionId);
         sessionContextMap.put(sessionId, sessionContext);
         LOGGER.info("create session : sessionId = " + sessionId);
         return sessionContext;

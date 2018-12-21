@@ -8,7 +8,7 @@ import java.net.InetSocketAddress;
  */
 public final class ClientConfig {
 
-    private static final String DEFAULT_SERVICE_NAME = "broker";
+    public static final String DEFAULT_SERVICE_NAME = "brokers";
 
     private InetSocketAddress hostAndPort;
 
@@ -38,5 +38,39 @@ public final class ClientConfig {
 
     public void setServiceName(String serviceName) {
         this.serviceName = serviceName;
+    }
+
+    public static class ClientConfigBuilder {
+
+        private String host;
+
+        private final int port;
+
+        private String connectString;
+
+        public ClientConfigBuilder(int port) {
+            this.port = port;
+        }
+
+        public ClientConfigBuilder setHost(String host){
+            this.host = host;
+            return this;
+        }
+
+        public ClientConfigBuilder setRegistryConnectAddress(String connectString){
+            this.connectString = connectString;
+            return this;
+        }
+
+        public ClientConfig build(){
+            ClientConfig clientConfig = new ClientConfig();
+            InetSocketAddress address = host == null? new InetSocketAddress(port) : new InetSocketAddress(host, port);
+            clientConfig.setHostAndPort(address);
+            if(connectString != null){
+                clientConfig.setRegistryConnectAddress(connectString);
+            }
+            return clientConfig;
+        }
+
     }
 }

@@ -43,7 +43,7 @@ public class DefaultPartitionRouter implements Router<BasePartition>{
      */
     @Override
     public BasePartition route(List<BasePartition> basePartitions, String key) {
-        int choosePartitionIndex = key.hashCode()&basePartitions.size();
+        int choosePartitionIndex = key.hashCode() & basePartitions.size();
         return basePartitions.get(choosePartitionIndex);
     }
 }

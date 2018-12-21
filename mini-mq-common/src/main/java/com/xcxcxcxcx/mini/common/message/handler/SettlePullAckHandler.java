@@ -8,11 +8,14 @@ import com.xcxcxcxcx.mini.api.connector.message.Packet;
 import com.xcxcxcxcx.mini.api.persistence.PersistenceMapper;
 import com.xcxcxcxcx.mini.api.connector.message.entity.SettlePullAckResult;
 import com.xcxcxcxcx.mini.api.connector.message.entity.SettlePullAck;
+import com.xcxcxcxcx.mini.api.spi.executor.ExecutorFactory;
 import com.xcxcxcxcx.mini.common.message.wrapper.SettlePullAckPacketWrapper;
 import com.xcxcxcxcx.mini.common.topic.BrokerContext;
+import com.xcxcxcxcx.mini.common.topic.task.RetryConsumptionTask;
 import com.xcxcxcxcx.persistence.db.persistence.DbFactory;
 
 import java.util.List;
+import java.util.concurrent.Executor;
 
 /**
  * @author XCXCXCXCX
@@ -20,7 +23,9 @@ import java.util.List;
  */
 public class SettlePullAckHandler extends BaseHandler {
 
-    private PersistenceMapper persistenceMapper = DbFactory.getMapper();
+    private final PersistenceMapper persistenceMapper = DbFactory.getMapper();
+
+    private final Executor executor = ExecutorFactory.create().get("Asyn-retry-pull-to-memory-executor");
 
     @Override
     public void reply(Object result, Connection connection) {
@@ -40,12 +45,8 @@ public class SettlePullAckHandler extends BaseHandler {
         result.ackIds = persistenceMapper.batchAckPull(pullAckIds, groupId);
         result.rejectIds = persistenceMapper.batchRejectPull(pullRejectIds, groupId);
 
-        List<Message> messages = persistenceMapper.prePull(topicId, groupId, key, 1, Integer.MAX_VALUE);
-
-        if(key == null){
-            BrokerContext.sendMessage(topicId, messages);
-        }else{
-            BrokerContext.sendMessage(key, topicId, messages);
+        if(result.rejectIds != null && !result.rejectIds.isEmpty()){
+            executor.execute(new RetryConsumptionTask(result.rejectIds, topicId, groupId, key, result.rejectIds.size()));
         }
 
         return new Packet(Command.PULL_ACK_SETTLE_RESPONSE, result);

@@ -92,7 +92,8 @@ public interface PersistenceService<T> {
                             Integer pageNum,
                             Integer pageSize);
 
-    List<T> prePull(String topicId,
+    List<T> prePull(List<Long> messageRejectIds,
+                    String topicId,
                     String consumerGroupId,
                     String key,
                     Integer pageNum,

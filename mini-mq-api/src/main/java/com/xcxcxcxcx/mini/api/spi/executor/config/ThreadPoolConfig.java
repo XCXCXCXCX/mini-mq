@@ -16,6 +16,7 @@ import java.util.concurrent.ThreadPoolExecutor;
  */
 public final class ThreadPoolConfig implements RejectedExecutionHandler{
 
+    private final String type;
     private final String name;//名字
     private final int corePoolSize; //核心线程大小
     private final int maxPoolSize; //最大线程大小
@@ -34,7 +35,8 @@ public final class ThreadPoolConfig implements RejectedExecutionHandler{
      * @param name
      * @param threadFactory
      */
-    public ThreadPoolConfig(String name, ThreadFactory threadFactory) {
+    public ThreadPoolConfig(String type, String name, ThreadFactory threadFactory) {
+        this.type = type;
         this.name = name;
         this.corePoolSize = DEFAULT_CORE_POOL_SIZE;
         this.maxPoolSize = DEFAULT_MAX_POOL_SIZE;
@@ -53,7 +55,8 @@ public final class ThreadPoolConfig implements RejectedExecutionHandler{
      * @param keepAliveSeconds
      * @param threadFactory
      */
-    public ThreadPoolConfig(String name, int corePoolSize, int maxPoolSize, int queueCapacity, int keepAliveSeconds, ThreadFactory threadFactory) {
+    public ThreadPoolConfig(String type, String name, int corePoolSize, int maxPoolSize, int queueCapacity, int keepAliveSeconds, ThreadFactory threadFactory) {
+        this.type = type;
         this.name = name;
         this.corePoolSize = corePoolSize;
         this.maxPoolSize = maxPoolSize;
@@ -73,7 +76,8 @@ public final class ThreadPoolConfig implements RejectedExecutionHandler{
      * @param threadFactory
      * @param rejectedExecutionHandler
      */
-    public ThreadPoolConfig(String name, int corePoolSize, int maxPoolSize, int queueCapacity, int keepAliveSeconds, ThreadFactory threadFactory, RejectedExecutionHandler rejectedExecutionHandler) {
+    public ThreadPoolConfig(String type, String name, int corePoolSize, int maxPoolSize, int queueCapacity, int keepAliveSeconds, ThreadFactory threadFactory, RejectedExecutionHandler rejectedExecutionHandler) {
+        this.type = type;
         this.name = name;
         this.corePoolSize = corePoolSize;
         this.maxPoolSize = maxPoolSize;
@@ -86,6 +90,10 @@ public final class ThreadPoolConfig implements RejectedExecutionHandler{
     @Override
     public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
         throw new RejectedExecutionException("one task rejected, pool=" + this.getName());
+    }
+
+    public String getType() {
+        return type;
     }
 
     public String getName() {

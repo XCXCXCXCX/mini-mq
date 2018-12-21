@@ -6,6 +6,10 @@ package com.xcxcxcxcx.registry.abs;
  */
 public interface ServiceNode {
 
+    void setHost(String host);
+
+    void setPort(int port);
+
     /**
      * 全局唯一的ID
      * @return
@@ -37,11 +41,5 @@ public interface ServiceNode {
     default String getNodePath() {
         return getServiceName() + '/' + getId();
     }
-
-    /**
-     * 注册到zk上的格式
-     * @return
-     */
-    String toString();
 
 }

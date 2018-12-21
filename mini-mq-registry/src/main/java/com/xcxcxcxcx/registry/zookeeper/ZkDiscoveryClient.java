@@ -65,7 +65,16 @@ public final class ZkDiscoveryClient extends BaseService implements DiscoveryCli
         try {
             List<String> childNodes = zkClient.getChildren().forPath(path);
             return childNodes.stream()
-                    .map(childNode -> jsonService.parseObject(childNode, CommonServiceNode.class))
+                    .map(childNode -> {
+
+                        try {
+                            String node = new String(zkClient.getData().forPath(path +'/' + childNode));
+                            return jsonService.parseObject(node, CommonServiceNode.class);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                        return null;
+                    })
                     .collect(Collectors.toList());
         } catch (Exception e) {
             e.printStackTrace();
@@ -76,7 +85,7 @@ public final class ZkDiscoveryClient extends BaseService implements DiscoveryCli
     @Override
     public void register(ServiceNode node) {
         String key = ROOT_PATH + node.getNodePath();
-        byte[] value = node.toString().getBytes();
+        byte[] value = jsonService.parseString(node).getBytes();
         try {
             if(zkClient.checkExists().forPath(key) != null){
                 zkClient.delete().deletingChildrenIfNeeded().forPath(key);
@@ -84,7 +93,7 @@ public final class ZkDiscoveryClient extends BaseService implements DiscoveryCli
             }
             zkClient.create().creatingParentContainersIfNeeded()
                     .withMode(CreateMode.EPHEMERAL)
-                    .forPath(key,value);
+                    .forPath(key, value);
             LOGGER.info("服务注册成功!");
         } catch (Exception e) {
             e.printStackTrace();

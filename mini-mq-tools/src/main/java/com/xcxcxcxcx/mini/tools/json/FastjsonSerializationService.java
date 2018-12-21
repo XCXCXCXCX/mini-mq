@@ -25,4 +25,9 @@ public class FastjsonSerializationService implements JsonSerializationService{
     public <T> T parseObject(String content, Class<T> clazz) {
         return JSON.parseObject(content, clazz);
     }
+
+    @Override
+    public String parseString(Object o) {
+        return JSON.toJSONString(o);
+    }
 }

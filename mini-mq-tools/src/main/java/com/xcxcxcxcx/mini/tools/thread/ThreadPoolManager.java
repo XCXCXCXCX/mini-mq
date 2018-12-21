@@ -1,9 +1,5 @@
 package com.xcxcxcxcx.mini.tools.thread;
 
-import com.xcxcxcxcx.mini.api.spi.executor.Executor;
-import com.xcxcxcxcx.mini.api.spi.executor.ExecutorFactory;
-import com.xcxcxcxcx.mini.api.spi.executor.config.ThreadPoolConfig;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,8 +14,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 1.0
  */
 public final class ThreadPoolManager implements ThreadFactory {
-
-    private static final Executor executor = ExecutorFactory.create();
 
     private ThreadGroup group;
     private static final Map<String, ThreadGroup> threadGroups = new ConcurrentHashMap<>();
@@ -48,10 +42,6 @@ public final class ThreadPoolManager implements ThreadFactory {
         this.name_prefix = group.getName();
     }
 
-    public static Map<String, java.util.concurrent.Executor> getAllExecutors() {
-        return executor.getAll();
-    }
-
     public static Map<String, ThreadGroup> getThreadGroups() {
         return threadGroups;
     }
@@ -77,25 +67,6 @@ public final class ThreadPoolManager implements ThreadFactory {
         t.setPriority(Thread.NORM_PRIORITY);
         t.setDaemon(true);
         return t;
-    }
-
-    /**
-     * 获取默认(或按照配置文件)配置的线程池
-     *
-     * @return
-     */
-    public static java.util.concurrent.Executor getExecutor(String name) {
-        return executor.get(name);
-    }
-
-    /**
-     * 根据配置信息获取线程池
-     *
-     * @param config
-     * @return
-     */
-    public static java.util.concurrent.Executor getExecutor(ThreadPoolConfig config) {
-        return executor.get(config);
     }
 
     public interface Generator{

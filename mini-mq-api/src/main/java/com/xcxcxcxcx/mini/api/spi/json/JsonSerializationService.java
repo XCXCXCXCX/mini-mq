@@ -27,4 +27,9 @@ public interface JsonSerializationService {
      * String 转 对象
      */
     <T> T parseObject(String content, Class<T> clazz);
+
+    /**
+     * 对象转String
+     */
+    String parseString(Object o);
 }

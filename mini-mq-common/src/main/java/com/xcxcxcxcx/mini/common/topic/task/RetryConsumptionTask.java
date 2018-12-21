@@ -18,6 +18,8 @@ public class RetryConsumptionTask implements AutoPullToMemoryTask{
 
     private PersistenceMapper persistenceMapper = DbFactory.getMapper();
 
+    private final List<Long> messageRejectIds;
+
     private final String topicId;
 
     private final String groupId;
@@ -26,18 +28,16 @@ public class RetryConsumptionTask implements AutoPullToMemoryTask{
 
     private final int num;
 
-    private final ScheduledExecutorService scheduledExecutor;
-
-    public RetryConsumptionTask(String topicId,
+    public RetryConsumptionTask(List<Long> messageRejectIds,
+                                String topicId,
                                 String groupId,
                                 String key,
-                                int num,
-                                ScheduledExecutorService scheduledExecutor) {
+                                int num) {
+        this.messageRejectIds = messageRejectIds;
         this.topicId = topicId;
         this.groupId = groupId;
         this.key = key;
         this.num = num;
-        this.scheduledExecutor = scheduledExecutor;
     }
 
     @Override
@@ -50,7 +50,7 @@ public class RetryConsumptionTask implements AutoPullToMemoryTask{
         if(autoPullCondition()){
             List<Message> messages =
                     persistenceMapper.
-                            prePull(topicId, groupId, key,1, num);
+                            prePull(messageRejectIds, topicId, groupId, key,1, num);
 
             if(key == null){
                 BrokerContext.sendMessage(topicId, messages);

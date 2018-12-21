@@ -81,7 +81,6 @@ public abstract class BaseService implements Service {
     private void tryStop(Listener listener) {
         try{
             if (started.compareAndSet(true, false)) {
-                init();
                 doStop();
                 listener.onSuccess();
             }else{

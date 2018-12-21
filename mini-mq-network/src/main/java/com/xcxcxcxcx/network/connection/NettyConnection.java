@@ -1,5 +1,6 @@
 package com.xcxcxcxcx.network.connection;
 
+import com.xcxcxcxcx.mini.api.connector.command.Command;
 import com.xcxcxcxcx.mini.api.connector.connection.Connection;
 import com.xcxcxcxcx.mini.api.connector.message.Packet;
 import com.xcxcxcxcx.mini.api.connector.session.SessionContext;
@@ -12,12 +13,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
  * NettyConnection ，用于封装channel，提供心跳检测功能
+ *
  * @author XCXCXCXCX
  * @since 1.0
  */
-public final class NettyConnection implements Connection,ChannelFutureListener {
+public final class NettyConnection implements Connection, ChannelFutureListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NettyConnection.class);
 
@@ -33,6 +34,7 @@ public final class NettyConnection implements Connection,ChannelFutureListener {
 
     /**
      * 创建连接
+     *
      * @param channel
      */
     public NettyConnection(Channel channel) {
@@ -63,6 +65,7 @@ public final class NettyConnection implements Connection,ChannelFutureListener {
 
     /**
      * 异步发送，不监听结果
+     *
      * @param packet
      * @return
      */
@@ -73,15 +76,15 @@ public final class NettyConnection implements Connection,ChannelFutureListener {
 
     /**
      * 异步发送，监听结果
+     *
      * @param packet
      * @param listener
      * @return
      */
     @Override
     public ChannelFuture send(Packet packet, ChannelFutureListener listener) {
-        if(getChannel().isActive()){
-
-            ChannelFuture future = getChannel().writeAndFlush(packet.completeHeader(getChannel()))
+        if (getChannel().isActive()) {
+            ChannelFuture future = getChannel().writeAndFlush(packet.completeHeader(getSessionContext().getSessionId()))
                     .addListener(this);
 
             if (listener != null) {
@@ -89,12 +92,12 @@ public final class NettyConnection implements Connection,ChannelFutureListener {
             }
 
             //1.如果channel不是可写的(说明此时IO操作频繁，IO被占用)
-            //  或
+            //  且
             //2.如果channel不是由该线程处理或指定处理线程还未启动
             //channel注册流程异步进行
-            if (!getChannel().isWritable() || !future.channel().eventLoop().inEventLoop()) {
-                //1.阻塞当前线程，等待其他线程处理完毕（等待100ms）
-                if(future.awaitUninterruptibly(100)){
+            if (!getChannel().isWritable() && !future.channel().eventLoop().inEventLoop()) {
+                //1.阻塞当前线程，等待线程处理完毕（等待100ms）
+                if (future.awaitUninterruptibly(100)) {
                     return future;
                 }
 
@@ -107,7 +110,7 @@ public final class NettyConnection implements Connection,ChannelFutureListener {
             //2.如果channel是由该线程处理，则会同步执行channel注册流程
             return future;
 
-        }else {
+        } else {
             return close();
         }
 
@@ -150,6 +153,7 @@ public final class NettyConnection implements Connection,ChannelFutureListener {
 
     /**
      * 监听channel处理结果，channel写操作结果的回调
+     *
      * @param future
      * @throws Exception
      */

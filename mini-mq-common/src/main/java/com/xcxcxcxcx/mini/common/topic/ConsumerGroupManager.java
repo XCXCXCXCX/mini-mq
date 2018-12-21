@@ -126,6 +126,9 @@ public final class ConsumerGroupManager {
 
 
     public void sendMessage(String topicId, List<Message> messages) {
+        if(messages == null || messages.isEmpty()){
+            return;
+        }
         for(Map.Entry<String, ConsumerGroup> entry : consumerGroupMap.entrySet()){
             doSendMessageToEveryGroup(entry.getValue(), topicId, messages, null);
         }
@@ -133,6 +136,9 @@ public final class ConsumerGroupManager {
 
 
     public void sendMessage(String key, String topicId, List<Message> messages) {
+        if(messages == null || messages.isEmpty()){
+            return;
+        }
         for(Map.Entry<String, ConsumerGroup> entry : consumerGroupMap.entrySet()){
             doSendMessageToEveryGroup(entry.getValue(), topicId, messages, key);
         }

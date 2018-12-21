@@ -14,7 +14,7 @@ public final class CuratorManager {
     private static CuratorFramework client;
 
     private static Boolean isInit(){
-        return client == null;
+        return client != null;
     }
 
     public static synchronized CuratorFramework getClient(String connectString){

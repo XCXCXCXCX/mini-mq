@@ -58,16 +58,20 @@ public abstract class NettyTcpServer extends BaseService implements Server {
         final InetSocketAddress address =
                 ("localhost".equals(host)) ?
                         new InetSocketAddress(port) : new InetSocketAddress(host, port);
-        bootstrap.bind(address).addListener(new GenericFutureListener<Future<? super Void>>() {
-            @Override
-            public void operationComplete(Future<? super Void> future) throws Exception {
-                if(future.isSuccess()){
-                    logger.info("server bind " + address.getAddress() + " success");
-                }else{
-                    logger.error("server bind " + address.getAddress() + " error");
+        try {
+            bootstrap.bind(address).addListener(new GenericFutureListener<Future<? super Void>>() {
+                @Override
+                public void operationComplete(Future<? super Void> future) throws Exception {
+                    if(future.isSuccess()){
+                        logger.info("server bind " + address.getAddress() + " success");
+                    }else{
+                        logger.error("server bind " + address.getAddress() + " error");
+                    }
                 }
-            }
-        });
+            }).sync();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -161,7 +165,10 @@ public abstract class NettyTcpServer extends BaseService implements Server {
      * @return
      */
     private ChannelHandler getDecoder(){
-        return new PacketDecoder();
+        return new PacketDecoder(3*1024*1024,
+                0,4,
+                1, 9,
+                true);
     }
 
     /**

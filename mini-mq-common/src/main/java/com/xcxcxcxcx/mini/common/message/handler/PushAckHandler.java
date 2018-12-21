@@ -24,6 +24,7 @@ public final class PushAckHandler extends AckHandler{
 
 
         PushAckResult ackResult = new PushAckResult();
+        ackResult.id = pushAck.id;
         ackResult.messageAckIds = persistenceMapper.batchAckPush(ackIds);
         ackResult.messageRejectIds = persistenceMapper.batchRejectPush(rejectIds);
 

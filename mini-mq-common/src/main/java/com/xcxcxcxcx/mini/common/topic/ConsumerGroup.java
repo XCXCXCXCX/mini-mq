@@ -22,7 +22,7 @@ public final class ConsumerGroup {
 
     private List<ConsumerEntity> consumers;
 
-    private AtomicInteger currentConsumerNum = new AtomicInteger(0);
+    private final AtomicInteger currentConsumerNum = new AtomicInteger(0);
 
     private final DefaultTopicFactory factory;
 
@@ -41,15 +41,18 @@ public final class ConsumerGroup {
     public ConsumerGroup(ConsumerEntity consumer, int partitionNum) {
         this.groupId = consumer.getId();
         this.consumers = new CopyOnWriteArrayList<>();
+        String topicId = consumer.getTopicId();
         factory = new DefaultTopicFactory();
         topicMaps = new ConcurrentHashMap<>();
-
+        if(BrokerContext.getTopicById(consumer.getTopicId()) == null){
+            throw new IllegalStateException("BrokerContext中不存在该topic");
+        }
+        BaseTopic currentTopic = factory.create(topicId,groupId,
+                partitionNum);
+        topicMaps.put(topicId, currentTopic);
         consumer.setIdInGroup(currentConsumerNum.incrementAndGet());
-
+        currentTopic.subscribe(consumer.getId()+"-"+consumer.getIdInGroup());
         consumers.add(consumer);
-
-        String topicId = consumer.getTopicId();
-        topicMaps.put(topicId, factory.create(topicId, groupId, partitionNum));
 
     }
 
@@ -66,9 +69,8 @@ public final class ConsumerGroup {
                     BrokerContext.getTopicPartitionNum(topicId));
             topicMaps.put(topicId, topic);
         }
-        topic.subscribe(consumer.getId()+"-"+consumer.getIdInGroup());
-
         consumer.setIdInGroup(currentConsumerNum.incrementAndGet());
+        topic.subscribe(consumer.getId()+"-"+consumer.getIdInGroup());
         consumers.add(consumer);
 
     }
@@ -127,7 +129,7 @@ public final class ConsumerGroup {
      * @return
      */
     public List<Message> getMessage(String topicId) {
-        BaseTopic topic = topicMaps.get(groupId);
+        BaseTopic topic = topicMaps.get(topicId);
         if(topic == null){
             throw new RuntimeException("该消费组中的topic还没有被创建! : groupId = " + groupId
                     +",topicId = " + topicId);
@@ -142,7 +144,7 @@ public final class ConsumerGroup {
      * @return
      */
     public List<Message> getMessage(String topicId, String key) {
-        BaseTopic topic = topicMaps.get(groupId);
+        BaseTopic topic = topicMaps.get(topicId);
         if(topic == null){
             throw new RuntimeException("该消费组中的topic还没有被创建! : groupId = " + groupId
                     +",topicId = " + topicId);
@@ -152,7 +154,7 @@ public final class ConsumerGroup {
     }
 
     public void sendMessage(String topicId, List<Message> messages) {
-        BaseTopic topic = topicMaps.get(groupId);
+        BaseTopic topic = topicMaps.get(topicId);
         if(topic == null){
             throw new RuntimeException("该消费组中的topic还没有被创建! : groupId = " + groupId
                     +",topicId = " + topicId);
@@ -162,7 +164,7 @@ public final class ConsumerGroup {
     }
 
     public void sendMessage(String topicId, List<Message> messages, String key) {
-        BaseTopic topic = topicMaps.get(groupId);
+        BaseTopic topic = topicMaps.get(topicId);
         if(topic == null){
             throw new RuntimeException("该消费组中的topic还没有被创建! : groupId = " + groupId
                     +",topicId = " + topicId);

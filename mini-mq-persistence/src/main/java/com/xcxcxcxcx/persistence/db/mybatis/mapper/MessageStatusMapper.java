@@ -25,9 +25,19 @@ public interface MessageStatusMapper {
      * @param consumerGroupId
      * @return
      */
-    List<Long> queryByIdsAndGroup(@Param("ids") List<Long> ids,
+    List<Message> queryByIdsAndGroup(@Param("ids") List<Long> ids,
                                   @Param("consumerGroupId") String consumerGroupId,
                                   @Param("status") Integer status);
+
+    /**
+     * 用于查询被成功确认的消息ID
+     * @param ids
+     * @param consumerGroupId
+     * @return
+     */
+    List<Long> queryIdByIdsAndGroup(@Param("ids") List<Long> ids,
+                                     @Param("consumerGroupId") String consumerGroupId,
+                                     @Param("status") Integer status);
 
     /**
      * 查询未被group pull过的消息ID
@@ -51,11 +61,12 @@ public interface MessageStatusMapper {
      * @param pageSize
      * @return
      */
-    List<Message> queryNotAbsent(@Param("topicId") String topicId,
-                                 @Param("consumerGroupId") String consumerGroupId,
-                                 @Param("key") String key,
-                                 @Param("pageNum") Integer pageNum,
-                                 @Param("pageSize") Integer pageSize);
+    List<Long> queryNotAbsent(@Param("messageRejectIds") List<Long> messageRejectIds,
+                              @Param("topicId") String topicId,
+                              @Param("consumerGroupId") String consumerGroupId,
+                              @Param("key") String key,
+                              @Param("pageNum") Integer pageNum,
+                              @Param("pageSize") Integer pageSize);
 
     void batchAckPull(@Param("ids") List<Long> ids,
                       @Param("consumerGroupId") String consumerGroupId);

@@ -25,12 +25,14 @@ public interface Consumer<T> extends Partner{
      * 消费消息（阻塞，非阻塞）
      * @return
      */
-    T getMessage(Class<T> t, Boolean isBlocking);
+    BaseMessage<T> getMessage(Class<T> t, Boolean isBlocking);
 
     /**
      * 确认消费消息（同步）
      */
     Boolean synAck(Long id);
+
+    Boolean synReject(Long id);
 
     /**
      * 确认消费消息（异步）

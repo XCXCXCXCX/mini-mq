@@ -9,6 +9,7 @@ import com.xcxcxcxcx.mini.api.connector.message.entity.PullResult;
 import com.xcxcxcxcx.mini.api.connector.message.handler.BaseHandler;
 import com.xcxcxcxcx.mini.api.persistence.PersistenceMapper;
 import com.xcxcxcxcx.mini.api.connector.message.entity.Pull;
+import com.xcxcxcxcx.mini.api.spi.executor.ExecutorFactory;
 import com.xcxcxcxcx.mini.common.message.wrapper.PullPacketWrapper;
 import com.xcxcxcxcx.mini.common.topic.BrokerContext;
 import com.xcxcxcxcx.mini.tools.log.LogUtils;
@@ -16,6 +17,7 @@ import com.xcxcxcxcx.mini.tools.thread.ThreadManager;
 import com.xcxcxcxcx.persistence.db.persistence.DbFactory;
 
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -24,12 +26,63 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author XCXCXCXCX
  * @since 1.0
  */
-public final class PullHandler extends BaseHandler {
+public final class PullHandler extends BaseHandler{
 
-    private PersistenceMapper persistenceMapper = DbFactory.getMapper();
+    private static final long MAX_PREPULL_TIME_LIMIT = 10 * 1000;
+
+    private static final PersistenceMapper persistenceMapper = DbFactory.getMapper();
+
+    private static final Executor executor = ExecutorFactory.create().get("Asyn-pull-to-memory-executor");
 
     private AtomicBoolean pullRequest = new AtomicBoolean(false);
 
+    private static class AsynPullToMemoryTask implements AutoPullToMemoryTask{
+
+        private final AtomicBoolean pullRequest;
+
+        private final String topicId;
+
+        private final String groupId;
+
+        private final String key;
+
+        private final int num;
+
+        public AsynPullToMemoryTask(AtomicBoolean pullRequest, String topicId, String groupId, String key, int num) {
+            this.pullRequest = pullRequest;
+            this.topicId = topicId;
+            this.groupId = groupId;
+            this.key = key;
+            this.num = num;
+        }
+
+        @Override
+        public Boolean autoPullCondition() {
+            return pullRequest.compareAndSet(false, true);
+        }
+
+        @Override
+        public void doPullToMemory() {
+            List<Message> messages =
+                    persistenceMapper.
+                            prePullIfAbsent(topicId, groupId, key,1, 2 * num);
+            if(messages != null){
+                if(key == null){
+                    BrokerContext.sendMessage(topicId, messages);
+                }else{
+                    BrokerContext.sendMessage(key, topicId, messages);
+                }
+            }
+            pullRequest.compareAndSet(true, false);
+        }
+
+        @Override
+        public void run() {
+            if (autoPullCondition()) {
+                doPullToMemory();
+            }
+        }
+    }
 
     @Override
     public Object doHandle(Packet packet, Connection connection) {
@@ -51,32 +104,18 @@ public final class PullHandler extends BaseHandler {
          * @return
          */
         if(prePullCondition(topicId, groupId, num)){
-            ThreadManager.newThread(new AutoPullToMemoryTask() {
-                @Override
-                public Boolean autoPullCondition() {
-                    return pullRequest.compareAndSet(false, true);
-                }
+            executor.execute(new AsynPullToMemoryTask(pullRequest,
+                    topicId,groupId, key, num));
+        }
 
-                @Override
-                public void doPullToMemory() {
-                    List<Message> messages =
-                            persistenceMapper.
-                                    prePullIfAbsent(topicId, groupId, key,1, 2 * num);
-                    if(key == null){
-                        BrokerContext.sendMessage(topicId, messages);
-                    }else{
-                        BrokerContext.sendMessage(key, topicId, messages);
-                    }
-                    pullRequest.compareAndSet(true, false);
-                }
-
-                @Override
-                public void run() {
-                    if (autoPullCondition()) {
-                        doPullToMemory();
-                    }
-                }
-            }, "pullHandler-asyn-prePull");
+        long lastTime = System.currentTimeMillis();
+        while(BrokerContext.getMessageSum(groupId, topicId) == 0
+                && System.currentTimeMillis() - lastTime < MAX_PREPULL_TIME_LIMIT){
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         //2.从topic直接取消息
@@ -100,8 +139,8 @@ public final class PullHandler extends BaseHandler {
      */
     private boolean prePullCondition(String topicId, String groupId, int num) {
         if(BrokerContext.isExist(topicId)
-                && BrokerContext.getSubscribeNum(topicId, groupId) > 0
-                && BrokerContext.getMessageSum(topicId, groupId) < 2 * num){
+                && BrokerContext.getSubscribeNum(groupId, topicId) > 0
+                && BrokerContext.getMessageSum(groupId, topicId) < 2 * num){
             return true;
         }
         return false;

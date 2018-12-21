@@ -13,20 +13,25 @@ import com.xcxcxcxcx.mini.api.client.Role;
 import com.xcxcxcxcx.mini.api.connector.command.Command;
 import com.xcxcxcxcx.mini.api.connector.connection.Connection;
 import com.xcxcxcxcx.mini.api.connector.connection.ConnectionFactory;
+import com.xcxcxcxcx.mini.api.connector.message.HandshakeOKListener;
 import com.xcxcxcxcx.mini.api.connector.message.Message;
 import com.xcxcxcxcx.mini.api.connector.message.Packet;
 import com.xcxcxcxcx.mini.api.connector.message.PacketDispatcher;
 import com.xcxcxcxcx.mini.api.connector.message.entity.*;
 import com.xcxcxcxcx.mini.api.connector.message.handler.BaseHandler;
+import com.xcxcxcxcx.mini.api.event.service.Listener;
 import com.xcxcxcxcx.mini.tools.thread.ThreadManager;
+import com.xcxcxcxcx.mini.tools.thread.ThreadPoolManager;
 import com.xcxcxcxcx.network.connection.NettyConnection;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.*;
+import io.netty.util.*;
+import io.netty.util.Timer;
+import io.netty.util.concurrent.*;
+import io.netty.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
@@ -38,14 +43,15 @@ import java.util.stream.Collectors;
  * @author XCXCXCXCX
  * @since 1.0
  */
-public class ClientChannelHandler extends ChannelInboundHandlerAdapter implements ResponseReceiver {
+@ChannelHandler.Sharable
+public class ClientChannelHandler extends ChannelInboundHandlerAdapter implements ResponseReceiver,HandshakeOKListener,Runnable{
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientChannelHandler.class);
 
     /**
-     * 最大pending消息数量限制，1000个
+     * 最大pending消息数量限制，3000个
      */
-    private static final int MAX_PENDING_NUM_LIMIT = 1000;
+    private static final int MAX_PENDING_NUM_LIMIT = 3000;
 
     /**
      * 最大pending时间限制，1秒
@@ -60,7 +66,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     /**
      * 一次prefetch的最大消息数量
      */
-    private static final int ONE_PREFETCH_MAX_NUM = 100;
+    private static final int ONE_PREFETCH_MAX_NUM = 2000;
 
     /**
      * 最大send失败重试次数
@@ -79,17 +85,18 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     private int one_prefetch_max_num = ONE_PREFETCH_MAX_NUM;
     private long message_expired_time = MESSAGE_EXPIRED_TIME;
 
+    private final ExecutorService pendingExecutor = Executors.newSingleThreadExecutor(new ThreadPoolManager("pending-pool"));
+    private ExecutorService pendingAckExecutor;
+    private final ScheduledExecutorService scheduleExecutor = Executors.newSingleThreadScheduledExecutor(new ThreadPoolManager("schedule-settle-pool"));
+
     private final Queue<Message> pendingHandleMessage = new ConcurrentLinkedQueue<>();
     private final Queue<Message> pendingSend = new ConcurrentLinkedQueue<>();
-    private final Queue<IdAndAck> pendingSendAck = new ConcurrentLinkedQueue<>();
     private final Queue<IdAndAck> pendingReceiveAck = new ConcurrentLinkedQueue<>();
 
     private volatile CompletableFuture<Boolean> currentSendFuture;
-    private volatile CompletableFuture<Boolean> currentSendAckFuture;
     private volatile CompletableFuture<Boolean> currentReceiveAckFuture;
 
     private static final AtomicLong pendingSendStart = new AtomicLong(0);
-    private static final AtomicLong pendingSendAckStart = new AtomicLong(0);
     private static final AtomicLong pendingReceiveAckStart = new AtomicLong(0);
 
     /**
@@ -101,8 +108,6 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
      * 保存请求的回调
      */
     private final Map<Integer, CompletableFuture<Boolean>> requestCallback = new ConcurrentHashMap<>();
-
-    private final ScheduledExecutorService scheduleExecutor;
 
     private final ConnectionFactory connectionFactory;
 
@@ -118,12 +123,14 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
 
     private final String key;
 
-    private boolean isPendingPush;
-    private boolean isPendingPushAckOrReject;
-    private boolean isPendingPullAckOrReject;
-    private boolean isPrefetching;
+    private volatile Boolean isPendingPush = false;
+    private volatile Boolean isPendingPullAckOrReject = false;
+    private volatile Boolean isPrefetching = false;
+    private volatile Boolean shakehandOK = false;
 
-    public ClientChannelHandler(Partner partner) {
+    private final Listener listener;
+
+    public ClientChannelHandler(Partner partner, Listener listener) {
         roleName = partner.getRole().getRoleName();
         id = partner.getId();
         topicId = partner.getTopicId();
@@ -132,6 +139,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
 
         connectionFactory = NettyConnection::new;
 
+        this.listener = listener;
         /**
          * packetDispatcher初始化
          */
@@ -149,41 +157,52 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
             }
         });
         packetDispatcher.register(Command.PUSH_RESPONSE, new PushResponseHandler(this));
-        packetDispatcher.register(Command.PULL_RESPONSE, new PullResponseHandler(pendingHandleMessage, isPrefetching, this));
+        packetDispatcher.register(Command.PULL_RESPONSE, new PullResponseHandler(pendingHandleMessage, this));
         packetDispatcher.register(Command.PUSH_ACK_RESPONSE, new PushAckResponseHandler(this));
         packetDispatcher.register(Command.PULL_ACK_RESPONSE, new PullAckResponseHandler(this));
-        packetDispatcher.register(Command.HAND_SHAKE_OK, new ClientHandshakeOKHandler());
+        packetDispatcher.register(Command.PUSH_ACK_SETTLE_RESPONSE, new SettlePushAckResponseHandler(messageStorage));
+        packetDispatcher.register(Command.PULL_ACK_SETTLE_RESPONSE, new SettlePullAckResponseHandler(messageStorage));
+        packetDispatcher.register(Command.HAND_SHAKE_OK, new ClientHandshakeOKHandler(this));
 
-        scheduleExecutor = Executors.newSingleThreadScheduledExecutor();
+        if(roleName.equals(Role.PRODUCER)){
+            pendingAckExecutor =
+                    Executors.newSingleThreadExecutor(new ThreadPoolManager("pending-ack-pool"));
+        }
         scheduleExecutor.submit(new ScheduledSettleTask(messageStorage, connection, scheduleExecutor));
 
     }
 
     private void resolveProperties(Map<String, Object> props) {
-        Object max_pending_num_limit = props.get(RoleConfig.max_pending_num_limit);
-        Object max_pending_time_limit = props.get(RoleConfig.max_pending_time_limit);
-        Object max_prefetch_capacity = props.get(RoleConfig.max_prefetch_capacity);
-        Object one_prefetch_max_num = props.get(RoleConfig.one_prefetch_max_num);
-        Object message_expired_time = props.get(RoleConfig.message_expired_time);
-        if(max_pending_num_limit != null){
-            this.max_pending_num_limit = (Integer)max_pending_num_limit;
+        if(props != null){
+            Object max_pending_num_limit = props.get(RoleConfig.max_pending_num_limit);
+            Object max_pending_time_limit = props.get(RoleConfig.max_pending_time_limit);
+            Object max_prefetch_capacity = props.get(RoleConfig.max_prefetch_capacity);
+            Object one_prefetch_max_num = props.get(RoleConfig.one_prefetch_max_num);
+            Object message_expired_time = props.get(RoleConfig.message_expired_time);
+            if(max_pending_num_limit != null){
+                this.max_pending_num_limit = (Integer)max_pending_num_limit;
+            }
+            if(max_pending_time_limit != null){
+                this.max_pending_time_limit = (Long)max_pending_time_limit;
+            }
+            if(max_prefetch_capacity != null){
+                this.max_prefetch_capacity = (Integer)max_prefetch_capacity;
+            }
+            if(one_prefetch_max_num != null){
+                this.one_prefetch_max_num = (Integer)one_prefetch_max_num;
+            }
+            if(one_prefetch_max_num != null){
+                this.message_expired_time = (Long)message_expired_time;
+            }
         }
-        if(max_pending_time_limit != null){
-            this.max_pending_time_limit = (Long)max_pending_time_limit;
-        }
-        if(max_prefetch_capacity != null){
-            this.max_prefetch_capacity = (Integer)max_prefetch_capacity;
-        }
-        if(one_prefetch_max_num != null){
-            this.one_prefetch_max_num = (Integer)one_prefetch_max_num;
-        }
-        if(one_prefetch_max_num != null){
-            this.message_expired_time = (Long)message_expired_time;
-        }
+
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if(connection!=null && connection.getChannel().id() == ctx.channel().id()){
+            return;
+        }
         connection = connectionFactory.create(ctx.channel());
 
         /**
@@ -194,6 +213,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         handshake.id = this.id;
         handshake.topicId = this.topicId;
         connection.send(new Packet(Command.HAND_SHAKE, handshake));
+
     }
 
     @Override
@@ -204,6 +224,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if(((Packet) msg).isValid()){
+            connection.updateLastReadTime();
             packetDispatcher.dispatch((Packet) msg, connection);
         }else{
             LOGGER.error("channel read invalid packet : {}", msg);
@@ -214,8 +235,26 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         connection.close();
         LOGGER.error("caught an ex, channel={}", ctx.channel(), cause);
+        if(cause instanceof IOException){
+            initFlags();
+            this.listener.onFailure(cause);
+        }
     }
 
+    /**
+     * 重连时重置运行时标志位
+     */
+    private void initFlags(){
+        shakehandOK = false;
+        isPrefetching = false;
+        isPendingPullAckOrReject = false;
+        isPendingPush = false;
+    }
+
+    @Override
+    public void notifyHandshakeOK() {
+        shakehandOK = true;
+    }
 
     public CompletableFuture<Boolean> send(Object o) throws IllegalAccessException {
         return send(null, o);
@@ -227,15 +266,22 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         }
 
         //加入pending send队列
-
         //达到阈值后处理为push对象，然后批量发送
         return pendingPush(key, o);
     }
 
     private CompletableFuture<Boolean> pendingPush(String key, Object o) {
 
-        if(pendingSend.isEmpty()){
-            pendingSendStart.set(System.currentTimeMillis());
+        /**
+         * 快速失败
+         * 如果超过pending阈值，直接返回失败
+         */
+        int currentPendingNum;
+        if((currentPendingNum = pendingSend.size()) > MAX_PENDING_NUM_LIMIT){
+            LOGGER.error("too much pending num ! " + currentPendingNum + " PUSH waiting for ACK" );
+            CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+            completableFuture.complete(false);
+            return completableFuture;
         }
 
         //加入pending pushAck队列
@@ -248,37 +294,34 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
             throw new RuntimeException("加入pendingReceiveAck队列失败，队列可能已经满了!");
         }
 
-        if(!isPendingPush){
-            currentSendFuture = new CompletableFuture();
+        if(!isPendingPush && !pendingSend.isEmpty()){
+            currentSendFuture = new CompletableFuture<>();
             isPendingPush = true;
-        }else{
+        }else {
             return currentSendFuture;
         }
 
-        ThreadManager.newThread(()->{
-            doPush(currentSendFuture);
-            isPendingPush = false;
-        },"client-pending-push");
+        pendingExecutor.submit(this);
 
         return currentSendFuture;
 
     }
 
     private void doPush(final CompletableFuture<Boolean> completableFuture) {
+        pendingSendStart.set(System.currentTimeMillis());
         Push push = new Push();
         List<Message> pendingPushMessages = new ArrayList<>();
-
-        while(pendingPushMessages.size() <= max_pending_num_limit){
+        while(pendingPushMessages.size() < max_pending_num_limit){
             Message o = pendingSend.poll();
             if(o != null){
                 pendingPushMessages.add(o);
             }else{
-                if(System.currentTimeMillis() - pendingSendStart.get() <= max_pending_time_limit){
+                if(System.currentTimeMillis() - pendingSendStart.get() > max_pending_time_limit){
                     break;
                 }
             }
         }
-        pendingSendStart.set(System.currentTimeMillis());
+        isPendingPush = false;
 
         /**
          * key可以让消息发送到同一个partition，从而保证了一定的顺序
@@ -292,11 +335,12 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     }
 
     private void doSendPush(Push push, final CompletableFuture<Boolean> completableFuture) {
+        waitForHandshakeOK();
         connection.send(new Packet(Command.PUSH, push), new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if(future.isSuccess()){
-                    LOGGER.error("push request send success, wait response... ");
+                    LOGGER.info("push request send success, wait response...");
                     requestCallback.put(push.id, completableFuture);
                 }else{
                     LOGGER.error("push request send failed ! ");
@@ -306,43 +350,78 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         });
     }
 
-    public CompletableFuture<Boolean> sendAck(Long id, Boolean ack) throws IllegalAccessException {
-        if(roleName.equals(Role.CONSUMER)){
-            throw new IllegalAccessException("消费者不允许确认生产消息");
+    /**
+     * 连接建立成功且第二次握手成功，则认为初始化成功
+     * @return
+     */
+    private boolean isInited() {
+        return connection != null && shakehandOK;
+    }
+
+    private void waitForHandshakeOK(){
+        int times = 0;
+        while(!isInited()){
+            try {
+                times++;
+                if(times > 5){
+                    throw new RuntimeException("handshake failed, maybe [Handshake packet] is lost, try again.");
+                }
+                LOGGER.info("wait handshakeOK ...");
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
-        //加入pending sendAck队列
+    }
 
-        //达到阈值后处理为pushAck对象，然后批量发送
-
-        return pendingPushAckOrReject(id, ack);
+    /**
+     * 可以设立自动push的条件，如果有人（send）触发自动push，则会自动找寻pendingSend中的msg进行发送
+     * 如果发现N次pendingSend中没有pending的msg，则令线程休眠，等待下次send时唤醒
+     */
+    @Override
+    public void run() {
+        if(roleName.equals(Role.PRODUCER)){
+            doPush(currentSendFuture);
+        } else if(roleName.equals(Role.CONSUMER)){
+            doPullAckOrReject(currentReceiveAckFuture);
+        }
     }
 
     public Message receive(Boolean isBlocking) throws IllegalAccessException {
         if(roleName.equals(Role.PRODUCER)){
             throw new IllegalAccessException("生产者不允许消费消息");
         }
-        //从当前消息池中取消息 条件1.消息池不为空 2.当消息池中消息少于阈值，触发prefetch
-
-        if(prefetchCondition()){
-            Pull pull = new Pull();
-            pull.key = this.key;
-            pull.num = one_prefetch_max_num;
-            prefetch(pull);
-        }
 
         Message message = null;
         if(isBlocking){
             while((message = pendingHandleMessage.poll()) == null && !Thread.interrupted()){
-                LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(5));
+                //从当前消息池中取消息 条件1.消息池不为空 2.当消息池中消息少于阈值，触发prefetch
+                if(prefetchCondition()){
+                    Pull pull = new Pull();
+                    pull.key = this.key;
+                    pull.num = one_prefetch_max_num;
+                    waitForHandshakeOK();
+                    prefetch(pull);
+                }
+                LockSupport.parkNanos(TimeUnit.SECONDS.toNanos(2));
             }
         }else{
             message = pendingHandleMessage.poll();
+            //从当前消息池中取消息 条件1.消息池不为空 2.当消息池中消息少于阈值，触发prefetch
+            if(prefetchCondition()){
+                Pull pull = new Pull();
+                pull.key = this.key;
+                pull.num = one_prefetch_max_num;
+                waitForHandshakeOK();
+                prefetch(pull);
+            }
         }
 
         return message;
     }
 
     private Boolean prefetchCondition(){
+
         if(!isPrefetching && pendingHandleMessage.size() <= max_prefetch_capacity/2){
             isPrefetching = true;
             return true;
@@ -378,8 +457,16 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
 
     private CompletableFuture<Boolean> pendingPullAckOrReject(Long id, Boolean ack) {
 
-        if(pendingReceiveAck.isEmpty()){
-            pendingReceiveAckStart.set(System.currentTimeMillis());
+        /**
+         * 快速失败
+         * 如果超过pending阈值，直接返回失败
+         */
+        int currentPendingNum;
+        if((currentPendingNum = pendingReceiveAck.size()) > MAX_PENDING_NUM_LIMIT){
+            LOGGER.error("too much pending num ! " + currentPendingNum + " PULL_ACK_OR_REJECT waiting for ACK" );
+            CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+            completableFuture.complete(false);
+            return completableFuture;
         }
 
         //加入pending receiveAck队列
@@ -394,24 +481,23 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
             return currentReceiveAckFuture;
         }
 
-        ThreadManager.newThread(()->{
-            doPullAckOrReject(currentReceiveAckFuture);
-            isPendingPullAckOrReject = false;
-        },"client-pending-pullAck");
+        pendingExecutor.submit(this);
 
         return currentReceiveAckFuture;
     }
 
     private void doPullAckOrReject(final CompletableFuture<Boolean> completableFuture) {
 
+        pendingReceiveAckStart.set(System.currentTimeMillis());
         PullAck ack = new PullAck();
         List<Long> pendingAckId = new ArrayList<>();
         List<Long> pendingRejectId = new ArrayList<>();
 
         getAckIdsAndRejectIds(pendingAckId, pendingRejectId, pendingReceiveAck, pendingReceiveAckStart);
+        isPendingPullAckOrReject = false;
 
-        pendingReceiveAckStart.set(System.currentTimeMillis());
         ack.id = getRequestId(ack);
+        ack.key = this.key;
         ack.messageAckIds = pendingAckId;
         ack.messageRejectIds = pendingRejectId;
 
@@ -433,7 +519,9 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if(future.isSuccess()){
-                    LOGGER.error("push request send success, wait response... ");
+                    LOGGER.info("pullAck request send success, wait response... ");
+                    messageStorage.localPullAck(ack.messageAckIds);
+                    messageStorage.localPullReject(ack.messageRejectIds);
                     requestCallback.put(ack.id, completableFuture);
                 }else{
                     LOGGER.error("pullAck request send failed ! " + times + " retry...max_retry = " + max_fail_retry);
@@ -473,44 +561,33 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         }
     }
 
-    private CompletableFuture<Boolean> pendingPushAckOrReject(Long id, Boolean ack) {
+    private void pushAckOrReject(int requestId,
+                                 List<Long> ackId,
+                                 List<Long> rejectId,
+                                 final CompletableFuture<Boolean> completableFuture) {
 
-        if(pendingSendAck.isEmpty()){
-            pendingSendAckStart.set(System.currentTimeMillis());
+        if((ackId == null || ackId.isEmpty())
+                && (rejectId == null || rejectId.isEmpty())){
+            completableFuture.complete(true);
+            return;
         }
 
-        //加入pending receiveAck队列
-        if(!pendingSendAck.offer(new IdAndAck(id, ack))){
-            throw new RuntimeException("加入pendingSendAck队列失败，队列可能已经满了!");
-        }
-
-        if(!isPendingPushAckOrReject){
-            currentSendAckFuture = new CompletableFuture();
-            isPendingPushAckOrReject = true;
-        }else{
-            return currentSendAckFuture;
-        }
-
-        ThreadManager.newThread(()->{
-            doPushAckOrReject(currentSendAckFuture);
-            isPendingPushAckOrReject = false;
-        },"client-pending-pushAck");
-
-        return currentSendAckFuture;
+        pendingAckExecutor.submit(()->{
+            doPushAckOrReject(requestId, ackId, rejectId, completableFuture);
+        });
 
     }
 
-    private void doPushAckOrReject(final CompletableFuture<Boolean> completableFuture) {
+    private void doPushAckOrReject(int requestId,
+                                   List<Long> ackId,
+                                   List<Long> rejectId,
+                                   final CompletableFuture<Boolean> completableFuture) {
 
         PullAck ack = new PullAck();
-        List<Long> pendingAckId = new ArrayList<>();
-        List<Long> pendingRejectId = new ArrayList<>();
 
-        getAckIdsAndRejectIds(pendingAckId, pendingRejectId, pendingSendAck, pendingSendAckStart);
-        pendingSendAckStart.set(System.currentTimeMillis());
-        ack.id = getRequestId(ack);
-        ack.messageAckIds = pendingAckId;
-        ack.messageRejectIds = pendingRejectId;
+        ack.id = requestId;
+        ack.messageAckIds = ackId;
+        ack.messageRejectIds = rejectId;
 
         doSendPushAck(ack, 1, completableFuture);
 
@@ -521,8 +598,8 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if(future.isSuccess()){
-                    LOGGER.error("push request send success, wait response... ");
-                    requestCallback.put(ack.id, completableFuture);
+                    LOGGER.info("pushAck request send success, wait response... ");
+                    messageStorage.localPushAck(ack.messageAckIds);
                 }else{
                     LOGGER.error("pushAck request send failed ! " + times + " retry...max_retry = " + max_fail_retry);
                     if(times >= max_fail_retry){
@@ -540,7 +617,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
                                        List<Long> pendingRejectId,
                                        final Queue<IdAndAck> pendingAck,
                                        final AtomicLong pendingAckStart){
-        while(pendingAckId.size() <= MAX_PENDING_NUM_LIMIT){
+        while(pendingAckId.size() < MAX_PENDING_NUM_LIMIT){
             IdAndAck idAndAck = pendingAck.poll();
             if(idAndAck != null){
                 if(idAndAck.getAck()){
@@ -549,7 +626,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
                     pendingRejectId.add(idAndAck.getId());
                 }
             }else{
-                if(System.currentTimeMillis() - pendingAckStart.get() <= MAX_PENDING_TIME_LIMIT){
+                if(System.currentTimeMillis() - pendingAckStart.get() > MAX_PENDING_TIME_LIMIT){
                     break;
                 }
             }
@@ -567,7 +644,11 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
                 new MessageInfo().setId(id).setExpired(System.currentTimeMillis() + message_expired_time).setStatus(0)
             ).collect(Collectors.toList());
             messageStorage.remotePush(messageInfos);
-            requestCallback.remove(response.getId()).complete(true);
+            /**
+             * 此时认为第一步push成功，但无法保证消息被确认
+             * 此时发起消息确认的请求
+             */
+            pushAckOrReject(result.id, ackIds, null, requestCallback.get(result.id));
             return;
         }
 
@@ -575,21 +656,25 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         if(response.getResponseType() == ResponseEnum.PUSH_ACK_RESPONSE.getCode()){
             PushAckResult result = (PushAckResult)response.get();
             messageStorage.remotePushAck(result.messageAckIds);
-            requestCallback.remove(response.getId()).complete(true);
+            completeRequestCallback(response.getId());
             return;
         }
 
         //pull响应
         if(response.getResponseType() == ResponseEnum.PULL_RESPONSE.getCode()){
+            isPrefetching = false;
             PullResult result = (PullResult)response.get();
             List<Message> messages = result.messages;
             //超时时间5分钟
-            List<MessageInfo> messageInfos = messages.stream().map(message ->
-                new MessageInfo().setId(message.getMid())
-                        .setExpired(System.currentTimeMillis() + message_expired_time)
-                        .setStatus(2)
-            ).collect(Collectors.toList());
-            messageStorage.remotePull(messageInfos);
+            if(messages != null){
+                List<MessageInfo> messageInfos = messages.stream().map(message ->
+                        new MessageInfo().setId(message.getMid())
+                                .setExpired(System.currentTimeMillis() + message_expired_time)
+                                .setStatus(2)
+                ).collect(Collectors.toList());
+                messageStorage.remotePull(messageInfos);
+            }
+            return;
         }
 
         //pullAck响应
@@ -597,9 +682,26 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
             PullAckResult result = (PullAckResult) response.get();
             messageStorage.remotePullAck(result.messageAckIds);
             messageStorage.remotePullReject(result.messageRejectIds);
-            requestCallback.remove(response.getId()).complete(true);
+            completeRequestCallback(response.getId());
             return;
         }
 
+    }
+
+    private static final Timer retry_callback_timer =
+            new HashedWheelTimer(new ThreadPoolManager("retry-callback-pool"));
+
+    private void completeRequestCallback(int id) {
+        try {
+            requestCallback.remove(id).complete(true);
+            LOGGER.debug("request callback [id={}] success", id);
+        }catch (NullPointerException e){
+            //定时任务重试
+            LOGGER.error("catch NullPointerException when completeRequestCallback, start retry-callback-pool..");
+            retry_callback_timer.newTimeout(timeout -> {
+                LOGGER.debug("retry-callback-pool try handle [id={}] NullPointerException ...", id);
+                completeRequestCallback(id);
+            },5, TimeUnit.SECONDS);
+        }
     }
 }

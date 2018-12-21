@@ -2,6 +2,7 @@ package com.xcxcxcxcx.network.client;
 
 import com.xcxcxcxcx.mini.api.event.service.BaseService;
 import com.xcxcxcxcx.mini.api.event.service.Client;
+import com.xcxcxcxcx.mini.api.event.service.Listener;
 import com.xcxcxcxcx.mini.api.event.service.Server;
 import com.xcxcxcxcx.mini.tools.thread.ThreadPoolManager;
 import com.xcxcxcxcx.network.codec.PacketDecoder;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -31,24 +33,26 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class NettyTcpClient extends BaseService implements Client {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger LOGGER = LoggerFactory.getLogger(this.getClass());
 
     private String host;
     private final int port;
     private EventLoopGroup workerGroup;
     private Bootstrap bootstrap;
+    private GenericFutureListener extentionListener;
 
     private static final int DEFAULT_WORKER_THREAD_NUM = 1;
 
     private static final int DEFAULT_WORKER_IO_RATIO = 50;
 
     public NettyTcpClient(int port) {
-        this(null, port);
+        this(null, port,null);
     }
 
-    public NettyTcpClient(String host, int port) {
+    public NettyTcpClient(String host, int port, GenericFutureListener listener) {
         this.host = host;
         this.port = port;
+        this.extentionListener = listener;
     }
 
     @Override
@@ -59,16 +63,30 @@ public abstract class NettyTcpClient extends BaseService implements Client {
         final InetSocketAddress address =
                 (host == null||"".equals(host)) ?
                         new InetSocketAddress(port) : new InetSocketAddress(host, port);
-        bootstrap.connect(address).addListener(new GenericFutureListener<Future<? super Void>>() {
-            @Override
-            public void operationComplete(Future<? super Void> future) throws Exception {
-                if(future.isSuccess()){
-                    logger.info("client connect " + address.getAddress() + " success");
-                }else{
-                    logger.error("client connect " + address.getAddress() + " error");
+
+        doConnect(address);
+    }
+
+    private void doConnect(InetSocketAddress address) {
+        try {
+            bootstrap.connect(address).addListener(new GenericFutureListener<Future<? super Void>>() {
+                @Override
+                public void operationComplete(Future<? super Void> future) throws Exception {
+                    if(future.isSuccess()){
+                        LOGGER.info("client connect " + address.toString() + " success");
+                    }else{
+                        LOGGER.error("client connect " + address.toString() + " error");
+                    }
                 }
-            }
-        });
+            }).addListener(extentionListener);
+        } catch (Exception e) {
+            e.printStackTrace();
+            LOGGER.error("重新连接broker时出错");
+        }
+    }
+
+    public void reconnect(InetSocketAddress address) {
+        doConnect(address);
     }
 
     /**
@@ -148,7 +166,10 @@ public abstract class NettyTcpClient extends BaseService implements Client {
      * @return
      */
     private ChannelHandler getDecoder(){
-        return new PacketDecoder();
+        return new PacketDecoder(3*1024*1024,
+                0,4,
+                1, 9,
+                true);
     }
 
     /**

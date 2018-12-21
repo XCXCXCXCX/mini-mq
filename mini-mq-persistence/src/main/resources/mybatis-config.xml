@@ -30,6 +30,7 @@
     <!--mappers配置-->
     <mappers>
         <mapper resource="mappers/MessageMapper.xml"/>
+        <mapper resource="mappers/MessageStatusMapper.xml"/>
         <mapper resource="mappers/TopicMapper.xml"/>
     </mappers>
 </configuration>

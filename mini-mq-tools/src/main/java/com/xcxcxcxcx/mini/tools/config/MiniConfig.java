@@ -148,7 +148,7 @@ public interface MiniConfig {
 
             Config monitor = mini.getObject("monitor").toConfig();
 
-            Boolean enable_timing_dump = mini.getBoolean("enable-timing-dump");
+            Boolean enable_timing_dump = monitor.getBoolean("enable-timing-dump");
 
             interface flowcontrol{
 

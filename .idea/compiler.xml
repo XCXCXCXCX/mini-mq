@@ -15,6 +15,7 @@
         <module name="mini-mq-persistence" />
         <module name="mini-mq-registry" />
         <module name="mini-mq-tools" />
+        <module name="minimq-demo" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="1.8">
@@ -28,6 +29,7 @@
       <module name="mini-mq-persistence" target="1.8" />
       <module name="mini-mq-registry" target="1.8" />
       <module name="mini-mq-tools" target="1.8" />
+      <module name="minimq-demo" target="1.8" />
     </bytecodeTargetLevel>
   </component>
 </project>

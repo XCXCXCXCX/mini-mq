@@ -3,9 +3,13 @@ package com.xcxcxcxcx.client;
 import com.xcxcxcxcx.client.config.ClientConfig;
 import com.xcxcxcxcx.client.connector.MiniConnectionClient;
 import com.xcxcxcxcx.mini.api.client.Partner;
+import com.xcxcxcxcx.mini.api.event.service.Listener;
 import com.xcxcxcxcx.registry.abs.DiscoveryClient;
 import com.xcxcxcxcx.registry.abs.ServiceNode;
 import com.xcxcxcxcx.registry.zookeeper.ZkDiscoveryClient;
+import io.netty.channel.ChannelHandler;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -17,20 +21,22 @@ import java.util.Random;
  */
 public final class MiniClient {
 
-    private final MiniConnectionClient client;
+    private MiniConnectionClient client;
 
     private DiscoveryClient discoveryClient;
+
+    private final String serviceName;
 
     public MiniClient(ClientConfig clientConfig, Partner partner) {
         InetSocketAddress hostAndPort = clientConfig.getHostAndPort();
         String connectString = clientConfig.getRegistryConnectAddress();
-        String serviceName = clientConfig.getServiceName();
+        this.serviceName = clientConfig.getServiceName();
         if(hostAndPort == null && connectString == null){
             throw new IllegalArgumentException("Wrong Client Config : nodeAddress and registryAddress is null!");
         }
 
-        String miniServerHost = hostAndPort.getHostString();
-        int miniServerPort = hostAndPort.getPort();
+        String miniServerHost = hostAndPort == null ? null : hostAndPort.getHostString();
+        int miniServerPort = hostAndPort == null ? 0 : hostAndPort.getPort();
         if(hostAndPort == null){
             discoveryClient = new ZkDiscoveryClient(connectString);
             discoveryClient.synStart();
@@ -42,10 +48,40 @@ public final class MiniClient {
             miniServerHost = node.getHost();
             miniServerPort = node.getPort();
         }
+        Listener listener = new Listener() {
+            @Override
+            public void onSuccess(Object... args) {
+
+            }
+
+            @Override
+            public void onFailure(Throwable ex) {
+                retryConnect();
+            }
+        };
         client = new MiniConnectionClient(miniServerHost,
                 miniServerPort,
-                partner);
-        client.start();
+                partner,
+                new GenericFutureListener() {
+                    @Override
+                    public void operationComplete(Future future) throws Exception {
+                        if(future.isSuccess()){
+
+                        }else {
+                            retryConnect();
+                        }
+                    }
+                },listener);
+        client.start(listener);
+    }
+
+    private void retryConnect() {
+        /**
+         * 重新选择broker实例并连接
+         */
+        List<ServiceNode> serviceNodeList = discoveryClient.getInstances(serviceName);
+        ServiceNode node = choose(serviceNodeList, "RANDOM");
+        client.reconnect(new InetSocketAddress(node.getHost(), node.getPort()));
     }
 
     /**
@@ -66,6 +102,10 @@ public final class MiniClient {
             return serviceNodeList.get(chooseIndex);
         }
         return null;
+    }
+
+    public ChannelHandler getChannelHandler(){
+        return client.getChannelHandler();
     }
 
 }

@@ -22,11 +22,6 @@
             <artifactId>mini-mq-registry</artifactId>
             <version>${parent.version}</version>
         </dependency>
-        <dependency>
-            <groupId>${parent.groupId}</groupId>
-            <artifactId>mini-mq-api</artifactId>
-            <version>${parent.version}</version>
-        </dependency>
     </dependencies>
 
     <build>

@@ -69,7 +69,7 @@ public class HeartbeatConnection implements ConnectionHolder, TimerTask {
                 return;
             }else{
                 //心跳超时但未超过限制
-                LogUtils.connection.info("heartbeat timeout times={}, connection disconnected, conn={}", timeoutTimes, connection);
+                LogUtils.connection.info("heartbeat timeout times={}, connection connected, conn={}", timeoutTimes, connection);
             }
 
         }else{

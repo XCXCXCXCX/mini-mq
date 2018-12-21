@@ -87,6 +87,10 @@ public class ServerChannelHandler extends ChannelInboundHandlerAdapter{
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 
         Connection connection = connectionManager.getConnection(ctx.channel());
+        if(!((Packet)msg).isValid()){
+            LOGGER.error("channel read invalid packet : {}", msg);
+        }
+        connection.updateLastReadTime();
 
         try {
             CostUtils.begin("packet read and dispatch");

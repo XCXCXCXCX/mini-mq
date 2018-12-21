@@ -64,8 +64,8 @@ public final class DbMapper implements PersistenceMapper<Message>{
     }
 
     @Override
-    public List<Message> prePull(String topicId, String consumerGroupId, String key, Integer pageNum, Integer pageSize) {
-        return service.prePull(topicId, consumerGroupId, key, pageNum, pageSize);
+    public List<Message> prePull(List<Long> messageRejectIds, String topicId, String consumerGroupId, String key, Integer pageNum, Integer pageSize) {
+        return service.prePull(messageRejectIds, topicId, consumerGroupId, key, pageNum, pageSize);
     }
 
     @Override

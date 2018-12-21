@@ -7,6 +7,7 @@ import com.xcxcxcxcx.mini.api.spi.json.JsonSerializationServiceFactory;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 /**
@@ -17,7 +18,7 @@ import java.util.Arrays;
  * @author XCXCXCXCX
  * @Since 1.0
  */
-public final class Packet{
+public final class Packet implements Serializable{
 
     public static final int HEADER_LENGTH = 13;
 
@@ -32,6 +33,8 @@ public final class Packet{
      */
     public static final byte HEATBEAT_BYTE = -127;
 
+    private static final JsonSerializationService jsonSerializationService = JsonSerializationServiceFactory.create();
+
     /**
      * 心跳包
      */
@@ -39,9 +42,6 @@ public final class Packet{
 
     private PacketHeader header;
     private byte[] body;
-
-    private static JsonSerializationService jsonSerializationService = JsonSerializationServiceFactory.create();
-
 
     public Packet(Command command, Object body) {
         this(command, jsonSerializationService.toJson(body));
@@ -53,7 +53,7 @@ public final class Packet{
 
     public Packet(PacketHeader header, byte[] body){
         this.header = header;
-        this.header.length = body.length;
+        this.header.length = body == null? 0 :body.length;
         this.body = body;
     }
 
@@ -79,8 +79,7 @@ public final class Packet{
      * @return
      */
     public Boolean validateHeader(){
-
-        return (getLrc() ^ header.getLrc()) == 0;
+        return getLrc() == header.getLrc();
     }
 
     private byte getLrc(){
@@ -89,7 +88,6 @@ public final class Packet{
                 .writeByte(header.getCmd())
                 .writeShort(header.getCheckcode())
                 .writeByte(header.getFlags())
-                .writeInt(header.getLrc())
                 .array();
         byte lrc = 0;
         for (int i = 0; i < data.length; i++) {
@@ -175,8 +173,11 @@ public final class Packet{
         }
     }
 
-    public Object completeHeader(Channel channel){
-        this.header.sessionId = channel.hashCode();
+    public Object completeHeader(int sessionId){
+        if(this.header.cmd == Command.HEARTBEAT.cmd){
+            return this;
+        }
+        this.header.sessionId = sessionId;
         this.header.flags = 0;
         this.header.checkcode = getCheckCode();
         this.header.lrc = getLrc();

@@ -86,6 +86,10 @@ public abstract class BasePartition implements Partition{
         }
     }
 
+    public Message getOneMessage(){
+        return queue.poll();
+    }
+
     @Override
     @Nullable
     public List<Message> pullMessage() {
@@ -97,7 +101,9 @@ public abstract class BasePartition implements Partition{
             if(pullCondition(start, messages.size())){
                 return messages.isEmpty() ? null : messages;
             }
-            messages.add(message);
+            if(message != null){
+                messages.add(message);
+            }
         }
 
     }
@@ -108,8 +114,8 @@ public abstract class BasePartition implements Partition{
      * 2.拉取消息量达到阈值
      * @return
      */
-    private Boolean pullCondition(long start,int messageSize){
-        if(System.currentTimeMillis() - start > MAX_POLL_TIME.getSeconds() * 1000
+    private Boolean pullCondition(long start, int messageSize){
+        if(System.currentTimeMillis() - start > MAX_POLL_TIME.toMillis()
                 || messageSize > MAX_POLL_MESSAGE_NUM){
             return true;
         }

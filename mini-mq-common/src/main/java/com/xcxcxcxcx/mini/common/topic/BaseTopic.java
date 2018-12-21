@@ -1,5 +1,6 @@
 package com.xcxcxcxcx.mini.common.topic;
 
+import com.sun.istack.internal.Nullable;
 import com.xcxcxcxcx.mini.api.connector.message.Message;
 import com.xcxcxcxcx.mini.api.connector.topic.Partition;
 import com.xcxcxcxcx.mini.api.connector.topic.Topic;
@@ -8,10 +9,12 @@ import com.xcxcxcxcx.mini.api.spi.router.Router;
 import com.xcxcxcxcx.mini.api.spi.router.RouterFactory;
 import com.xcxcxcxcx.mini.common.topic.task.RetryConsumptionTask;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -22,8 +25,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 1.0
  */
 public abstract class BaseTopic implements Topic{
-
-    private final static int DEFAULT_RETRY_PULL_MAX_NUM = 100;
 
     /**
      * 全局唯一的topicId
@@ -45,7 +46,7 @@ public abstract class BaseTopic implements Topic{
                      int partitionNum) {
         this.topicId = topicId;
         this.groupId = groupId;
-        currentPartitionIndex = new AtomicInteger(partitionNum);
+        currentPartitionIndex = new AtomicInteger(1);
         partitions = factory.createList(partitionNum);
         subscribedConsumers = new ConcurrentSkipListSet<>();
     }
@@ -140,9 +141,9 @@ public abstract class BaseTopic implements Topic{
         for(Message message : messages){
             String key = message.getKey();
             if(key == null){
-                sendMessage(message, key);
-            }else{
                 sendMessage(message);
+            }else{
+                sendMessage(message, key);
             }
         }
     }
@@ -169,13 +170,23 @@ public abstract class BaseTopic implements Topic{
     }
 
     /**
-     * 随机选择partition来消费
+     * 轮询选择partition来消费
      * @return
      */
     @Override
+    @Nullable
     public List<Message> getMessage() {
-        //choose partition randomly
-        return ((BasePartition)getRouter().route(LoadBalance.LoadBalanceStrategy.RANDOM, partitions)).pullMessage();
+        List<BasePartition> partitions = this.partitions;
+        List<Message> result = new ArrayList<>();
+        for(BasePartition partition : partitions){
+            if(partition != null){
+                Message message;
+                while((message = partition.getOneMessage()) != null){
+                    result.add(message);
+                }
+            }
+        }
+        return result.size() == 0 ? null : result;
     }
 
 }

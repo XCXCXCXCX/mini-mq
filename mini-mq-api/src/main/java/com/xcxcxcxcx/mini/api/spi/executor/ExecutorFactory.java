@@ -9,10 +9,10 @@ import com.xcxcxcxcx.mini.api.spi.SpiLoader;
 public final class ExecutorFactory {
 
     private static class ExecutorHolder{
-        private static Executor service = SpiLoader.load(Executor.class);
+        private static ExecutorService service = SpiLoader.load(ExecutorService.class);
     }
 
-    public static Executor create(){
+    public static ExecutorService create(){
         return ExecutorHolder.service;
     }
 

@@ -97,13 +97,20 @@ public class DbService implements PersistenceService<Message> {
 
     @Override
     public List<Message> batchPush(List<Message> messages) {
+        if(messages == null || messages.isEmpty()){
+            return null;
+        }
         SqlSession session = sqlSessionFactory.openSession(false);
         MessageMapper messageMapper = session.getMapper(MessageMapper.class);
         try {
             messageMapper.batchPush(messages);
             List<Long> ids = messages.stream().map(message -> message.getMid()).collect(Collectors.toList());
-            return messageMapper.queryById(ids, Message.MessageStatus.NEW.getId());
+            List<Message> result = messageMapper.queryById(ids, Message.MessageStatus.NEW.getId());
+            session.commit();
+            return result;
         }catch (Exception e){
+            e.printStackTrace();
+            session.rollback();
             return null;
         }finally {
             session.close();
@@ -122,12 +129,20 @@ public class DbService implements PersistenceService<Message> {
 
     @Override
     public List<Long> batchAckPush(List<Long> ids) {
+        if(ids == null || ids.isEmpty()){
+            return null;
+        }
         SqlSession session = sqlSessionFactory.openSession(false);
         MessageMapper messageMapper = session.getMapper(MessageMapper.class);
         try {
             messageMapper.batchAckPush(ids);
-            return messageMapper.queryIdById(ids, Message.MessageStatus.NEW_ACK.getId());
+            List<Long> resultIds =
+                    messageMapper.queryIdById(ids, Message.MessageStatus.NEW_ACK.getId());
+            session.commit();
+            return resultIds;
         }catch (Exception e){
+            e.printStackTrace();
+            session.rollback();
             return null;
         }finally {
             session.close();
@@ -146,12 +161,21 @@ public class DbService implements PersistenceService<Message> {
 
     @Override
     public List<Long> batchRejectPush(List<Long> ids) {
+        if(ids == null || ids.isEmpty()){
+            return null;
+        }
         SqlSession session = sqlSessionFactory.openSession(false);
         MessageMapper messageMapper = session.getMapper(MessageMapper.class);
         try {
+            if(ids == null || ids.isEmpty()){
+                return null;
+            }
             messageMapper.batchRejectPush(ids);
+            session.commit();
             return ids;
         }catch (Exception e){
+            e.printStackTrace();
+            session.rollback();
             return null;
         }finally {
             session.close();
@@ -174,12 +198,14 @@ public class DbService implements PersistenceService<Message> {
                                          Integer pageNum,
                                          Integer pageSize) {
         SqlSession session = sqlSessionFactory.openSession(false);
-        MessageMapper messageMapper = session.getMapper(MessageMapper.class);
         MessageStatusMapper messageStatusMapper = session.getMapper(MessageStatusMapper.class);
 
         try {
             List<Long> messageIds = messageStatusMapper.
                     queryAbsent(topicId,consumerGroupId,key,pageNum,pageSize);
+            if(messageIds == null || messageIds.isEmpty()){
+                return null;
+            }
             List<MessageStatusEntity> messageStatusEntities = messageIds.stream()
                     .map(id -> {
                         MessageStatusEntity entity = new MessageStatusEntity();
@@ -189,9 +215,13 @@ public class DbService implements PersistenceService<Message> {
                         return entity;
                     }).collect(Collectors.toList());
             messageStatusMapper.batchInsert(messageStatusEntities);
-
-            return messageMapper.queryById(messageIds, Message.MessageStatus.PROCCESSIGN.getId());
+            List<Message> result = messageStatusMapper
+                    .queryByIdsAndGroup(messageIds, consumerGroupId, Message.MessageStatus.PROCCESSIGN.getId());
+            session.commit();
+            return result;
         }catch (Exception e){
+            e.printStackTrace();
+            session.rollback();
             return null;
         }finally {
             session.close();
@@ -208,25 +238,30 @@ public class DbService implements PersistenceService<Message> {
      * @return
      */
     @Override
-    public List<Message> prePull(String topicId,
+    public List<Message> prePull(List<Long> messageRejectIds,
+                                 String topicId,
                                  String consumerGroupId,
                                  String key,
                                  Integer pageNum,
                                  Integer pageSize) {
+        if(messageRejectIds == null || messageRejectIds.isEmpty()){
+            return null;
+        }
         SqlSession session = sqlSessionFactory.openSession(false);
-        MessageMapper messageMapper = session.getMapper(MessageMapper.class);
         MessageStatusMapper messageStatusMapper = session.getMapper(MessageStatusMapper.class);
 
         try {
-            List<Message> messages = messageStatusMapper.
-                    queryNotAbsent(topicId,consumerGroupId,key,pageNum,pageSize);
-            List<Long> ids = messages.stream()
-                    .map(message -> message.getMid()).collect(Collectors.toList());
+            List<Long> ids = messageStatusMapper.
+                    queryNotAbsent(messageRejectIds, topicId, consumerGroupId, key, pageNum,pageSize);
             messageStatusMapper.batchUpdate(ids, consumerGroupId, MESSAGE_MAX_PULLED,
                     System.currentTimeMillis() + MESSAGE_PROCCESS_EXPIRED);
-
-            return messageMapper.queryById(ids, Message.MessageStatus.PROCCESSIGN.getId());
+            List<Message> result =
+                    messageStatusMapper.queryByIdsAndGroup(ids, consumerGroupId, Message.MessageStatus.PROCCESSIGN.getId());
+            session.commit();
+            return result;
         }catch (Exception e){
+            e.printStackTrace();
+            session.rollback();
             return null;
         }finally {
             session.close();
@@ -245,12 +280,20 @@ public class DbService implements PersistenceService<Message> {
 
     @Override
     public List<Long> batchAckPull(List<Long> ids, String consumerGroupId) {
+        if(ids == null || ids.isEmpty()){
+            return null;
+        }
+
         SqlSession session = sqlSessionFactory.openSession(false);
         MessageStatusMapper messageStatusMapper = session.getMapper(MessageStatusMapper.class);
         try {
             messageStatusMapper.batchAckPull(ids, consumerGroupId);
-            return messageStatusMapper.queryByIdsAndGroup(ids, consumerGroupId, 3);
+            List<Long> result = messageStatusMapper.queryIdByIdsAndGroup(ids, consumerGroupId, 3);
+            session.commit();
+            return result;
         }catch (Exception e){
+            e.printStackTrace();
+            session.rollback();
             return null;
         }finally {
             session.close();
@@ -269,12 +312,20 @@ public class DbService implements PersistenceService<Message> {
 
     @Override
     public List<Long> batchRejectPull(List<Long> ids, String consumerGroupId) {
+        if(ids == null || ids.isEmpty()){
+            return null;
+        }
+
         SqlSession session = sqlSessionFactory.openSession(false);
         MessageStatusMapper messageStatusMapper = session.getMapper(MessageStatusMapper.class);
         try {
             messageStatusMapper.batchRejectPull(ids, consumerGroupId);
-            return messageStatusMapper.queryByIdsAndGroup(ids, consumerGroupId, 4);
+            List<Long> result = messageStatusMapper.queryIdByIdsAndGroup(ids, consumerGroupId, 4);
+            session.commit();
+            return result;
         }catch (Exception e){
+            e.printStackTrace();
+            session.rollback();
             return null;
         }finally {
             session.close();
@@ -288,9 +339,12 @@ public class DbService implements PersistenceService<Message> {
 
         try {
             messageMapper.cleanExpired();
+            session.commit();
             return true;
         }catch (Exception e){
-            return false;
+            e.printStackTrace();
+            session.rollback();
+            return null;
         }finally {
             session.close();
         }
@@ -308,17 +362,17 @@ public class DbService implements PersistenceService<Message> {
             TopicMapper mapper = sqlSession.getMapper(TopicMapper.class);
 
             int row = mapper.createTopic(topicId, partitionNum);
-
             sqlSession.commit();
             return row > 0;
-        } catch (Exception e) {
+        }catch (Exception e){
             LogUtils.persistence.error("create topic error : " + e);
+            sqlSession.rollback();
             return false;
-        } finally {
+        }finally {
             sqlSession.close();
         }
-    }
 
+    }
     /**
      * 删除topic，同时删除属于它的消息
      * 需要开启事务
@@ -338,11 +392,11 @@ public class DbService implements PersistenceService<Message> {
 
             sqlSession.commit();
             return row > 0;
-        } catch (Exception e) {
+        }catch (Exception e){
             LogUtils.persistence.error("remove topic error : " + e);
             sqlSession.rollback();
             return false;
-        } finally {
+        }finally {
             sqlSession.close();
         }
     }

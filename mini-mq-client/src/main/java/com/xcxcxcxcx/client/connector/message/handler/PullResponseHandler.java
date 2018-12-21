@@ -20,13 +20,10 @@ public final class PullResponseHandler extends BaseHandler {
 
     private final Queue<Message> pendingHandleMessage;
 
-    private Boolean isPrefetching;
-
     private final ResponseReceiver responseReceiver;
 
-    public PullResponseHandler(Queue<Message> pendingHandleMessage,final Boolean isPrefetching, ResponseReceiver responseReceiver) {
+    public PullResponseHandler(Queue<Message> pendingHandleMessage,ResponseReceiver responseReceiver) {
         this.pendingHandleMessage = pendingHandleMessage;
-        this.isPrefetching = isPrefetching;
         this.responseReceiver = responseReceiver;
     }
 
@@ -41,14 +38,14 @@ public final class PullResponseHandler extends BaseHandler {
         List<Message> messages = result.messages;
 
         //1.将拉取到的消息发送到本地消息池中，供getMessage调用
-        for(Message message : messages){
-            if(!pendingHandleMessage.offer(message)){
-                LogUtils.handler.error("message is offered to pendingHandleMessage failed, maybe Queue" +
-                        "is full");
+        if(messages != null){
+            for(Message message : messages){
+                if(!pendingHandleMessage.offer(message)){
+                    LogUtils.handler.error("message is offered to pendingHandleMessage failed, maybe Queue" +
+                            "is full");
+                }
             }
         }
-
-        isPrefetching = false;
 
         ResponseReceiver.Response<PullResult> response = new ResponseReceiver.Response<PullResult>()
                 .set(result)

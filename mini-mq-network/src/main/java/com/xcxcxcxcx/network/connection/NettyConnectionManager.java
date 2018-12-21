@@ -48,7 +48,9 @@ public class NettyConnectionManager implements ConnectionManager {
 
     @Override
     public Connection addConnection(Connection connection) {
-        return connections.put(connection.getChannel().id(), connectionHolderFactory.create(connection)).get();
+        ConnectionHolder holder = connectionHolderFactory.create(connection);
+        connections.put(connection.getChannel().id(), holder);
+        return holder.get();
     }
 
     @Override

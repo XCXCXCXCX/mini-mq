@@ -113,13 +113,13 @@
 
 
 
-### registry模块开发（√）
+### registry模块开发
 
 提供服务注册/发现功能：
 
-1. 通用注册中心类（√）
-2. zk实现类（√）
-3. 提供服务注册/发现的接口（√）
+1. 通用注册中心类
+2. zk实现类
+3. 提供服务注册/发现的接口
 
 
 
@@ -137,13 +137,15 @@
 
 提供应用连接API入口：
 
-1. 创建producer并连接到broker
-2. 创建consumer并连接到broker
+1. 创建producer并连接到broker（√）
+2. 创建consumer并连接到broker（√）
 3. 创建/删除/查看topic
 4. producer send接口（√）
 5. consumer receive接口（√）
 6. consumer receiveAck接口（√）
 7. producer/consumer配置类（√）
+
+
 
 
 

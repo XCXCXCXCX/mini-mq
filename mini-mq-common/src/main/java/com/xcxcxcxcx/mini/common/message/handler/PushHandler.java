@@ -40,8 +40,10 @@ public final class PushHandler extends BaseHandler {
 
         //1.把消息持久化到数据库，消息状态为0
         PushResult result = new PushResult();
+        result.id = push.id;
         try{
-            result.messageAckIds = persistenceMapper.batchPush(messages);
+            List<Message> messageList = persistenceMapper.batchPush(messages);
+            result.messageAckIds = messageList.stream().map(message -> message.getMid()).collect(Collectors.toList());
         }catch (Exception e){
             result.messageRejectIds = messages.stream().
                     map(message -> message.getMid()).

@@ -19,9 +19,9 @@
 
     <insert id="batchInsert"
             parameterType="java.util.ArrayList">
-        INSERT INTO message_status (<include refid="Base_Column_List"/>)
+        INSERT INTO message_status (mid, consumerGroupId, pulledTimes, expired, status)
         VALUES
-        <foreach collection ="list" item="messageStatus" separator =",">
+        <foreach collection ="messageStatusEntities" item="messageStatus" separator =",">
             (#{messageStatus.mid,jdbcType=BIGINT},
             #{messageStatus.consumerGroupId,jdbcType=VARCHAR},
             1,
@@ -34,10 +34,9 @@
             parameterType="java.util.ArrayList">
         UPDATE message_status
         <set>
-            pulledTimes = pulledTimes + 1
-            AND status = 2
+            pulledTimes = pulledTimes + 1,status = 2
             <if test="expired != null">
-                AND expired = #{expired}
+                ,expired = #{expired}
             </if>
         </set>
         <where>
@@ -52,20 +51,18 @@
             </if>
             AND (
             (
-            <if test="pulledTimes != null">
+            status = 2
+            AND expired <![CDATA[ < ]]> REPLACE(unix_timestamp(NOW(3)),'.','')
+            <if test="maxPulledTimes != null">
                 AND pulledTimes <![CDATA[ < ]]> #{maxPulledTimes}
             </if>
-            <if test="expired != null">
-                AND expired <![CDATA[ < ]]> REPLACE(unix_timestamp(NOW(3)),'.','')
-            </if>
-            AND status = 2
             )
             OR
             (
-            <if test="pulledTimes != null">
+            status = 4
+            <if test="maxPulledTimes != null">
                 AND pulledTimes <![CDATA[ < ]]> #{maxPulledTimes}
             </if>
-            AND status = 4
             )
             )
         </where>
@@ -75,12 +72,34 @@
         <id column="mid" property="mid" jdbcType="BIGINT"/>
         <result column="topicId" property="topicId" jdbcType="VARCHAR"/>
         <result column="expired" property="expired" jdbcType="BIGINT"/>
+        <result column="key" property="key" jdbcType="VARCHAR"/>
         <result column="status" property="status" jdbcType="INTEGER"/>
         <result column="content" property="content" jdbcType="VARCHAR"/>
     </resultMap>
 
     <select id="queryByIdsAndGroup"
+            resultMap="MessageResultMap"
             resultType="java.util.ArrayList">
+        SELECT m.mid, m.topicId, s.expired, m.key, s.status, m.content
+        FROM message_status s LEFT JOIN message m ON s.mid = m.mid
+        <where>
+            <if test="ids != null">
+                s.mid in
+                <foreach collection="ids" item="mid" separator="," open="(" close=")">
+                    #{mid,jdbcType=BIGINT}
+                </foreach>
+            </if>
+            <if test="consumerGroupId != null">
+                AND s.consumerGroupId = #{consumerGroupId}
+            </if>
+            <if test="status != null">
+                AND s.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="queryIdByIdsAndGroup"
+            resultType="java.lang.Long">
         SELECT mid
         FROM message_status
         <where>
@@ -100,7 +119,7 @@
     </select>
 
     <select id="queryAbsent"
-            resultType="java.util.ArrayList">
+            resultType="java.lang.Long">
       SELECT mid
       FROM message m
       <where>
@@ -112,6 +131,7 @@
           <if test="key != null">
               AND key = #{key}
           </if>
+          AND status = 1
       </where>
         <if test="pageNum != null and pageSize != null and pageNum != 0 and pageSize != 0">
             <bind name="start" value="(pageNum-1)*pageSize"/>
@@ -121,13 +141,18 @@
     </select>
 
     <select id="queryNotAbsent"
-            resultMap="MessageResultMap"
-            resultType="java.util.ArrayList">
-      SELECT m.mid, m.topicId, m.status, m.key, m.expired, m.content
-      FROM message m RIGHT INNER JOIN message_status s on m.mid = s.mid
+            resultType="java.lang.Long">
+      SELECT s.mid
+      FROM message_status s LEFT JOIN message m on m.mid = s.mid
       <where>
+          <if test="messageRejectIds != null">
+              s.mid in
+              <foreach collection="messageRejectIds" item="mid" separator="," open="(" close=")">
+                  #{mid,jdbcType=BIGINT}
+              </foreach>
+          </if>
           <if test="topicId != null">
-              m.topicId = #{topicId}
+              AND m.topicId = #{topicId}
           </if>
           <if test="consumerGroupId != null">
               AND s.consumerGroupId = #{consumerGroupId}
@@ -160,7 +185,7 @@
                 </foreach>
             </if>
             <if test="consumerGroupId != null">
-                AND s.consumerGroupId = #{consumerGroupId}
+                AND consumerGroupId = #{consumerGroupId}
             </if>
             AND status = 2
         </where>
@@ -169,7 +194,7 @@
     <!-- 批量拒绝pull -->
     <update id="batchRejectPull"
             parameterType="java.util.ArrayList">
-        UPDATE message
+        UPDATE message_status
         <set>
             status = 4
         </set>
@@ -181,7 +206,7 @@
                 </foreach>
             </if>
             <if test="consumerGroupId != null">
-                AND s.consumerGroupId = #{consumerGroupId}
+                AND consumerGroupId = #{consumerGroupId}
             </if>
             AND status = 2
         </where>
