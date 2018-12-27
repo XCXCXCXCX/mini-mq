@@ -16,6 +16,29 @@ public final class ClientConfig {
 
     private String registryConnectAddress;
 
+    public ClientConfig() {
+    }
+
+    public ClientConfig(String registryConnectAddress) {
+        this.registryConnectAddress = registryConnectAddress;
+    }
+
+    public ClientConfig(int port, String registryConnectAddress) {
+        this.hostAndPort = new InetSocketAddress(port);
+        this.registryConnectAddress = registryConnectAddress;
+    }
+
+    public ClientConfig(String host, int port, String registryConnectAddress) {
+        this.hostAndPort = new InetSocketAddress(host, port);
+        this.registryConnectAddress = registryConnectAddress;
+    }
+
+    public ClientConfig(String host, int port, String serviceName, String registryConnectAddress) {
+        this.hostAndPort = new InetSocketAddress(host, port);
+        this.serviceName = serviceName;
+        this.registryConnectAddress = registryConnectAddress;
+    }
+
     public InetSocketAddress getHostAndPort() {
         return hostAndPort;
     }

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- producer 示例 -->
+    <!-- 第1,2个参数和第三个参数必须存在一个 -->
+    <bean id="clientConfig" class="com.xcxcxcxcx.client.config.ClientConfig">
+        <!-- broker host -->
+        <constructor-arg index="0" value="localhost"/>
+        <!-- broker 暴露端口 -->
+        <constructor-arg index="1" value="4402"/>
+        <!-- registry 连接字符串,如果是集群,用逗号隔开 -->
+        <constructor-arg index="2" value="192.168.179.130:2181"/>
+    </bean>
+    <bean id="miniProducerFactory" class="com.xcxcxcxcx.client.producer.MiniProducerFactory">
+        <!-- 注册中心地址，或单机broker ip:port     -->
+        <constructor-arg index="0" ref="clientConfig"/>
+        <!--               生产者ID                -->
+        <constructor-arg index="1" value="firstProducer"/>
+        <!--             订阅的topicId             -->
+        <constructor-arg index="2" value="firstTopic"/>
+        <!--     消息根据key路由到指定分区,非必输    -->
+        <constructor-arg index="3" value="firstKey"/>
+        <!--        生产者额外配置,参考RoleConfig    -->
+        <constructor-arg index="4">
+            <map>
+                <entry key="one_prefetch_max_num" value="3000"/>
+            </map>
+        </constructor-arg>
+    </bean>
+    <bean id="miniTemplate" class="com.xcxcxcxcx.client.spring.core.MiniTemplate">
+        <constructor-arg index="0" ref="miniProducerFactory"/>
+    </bean>
+
+    <!-- consumer 示例 -->
+    <bean id="clientConfig2" class="com.xcxcxcxcx.client.config.ClientConfig">
+        <!-- broker host -->
+        <constructor-arg index="0" value="localhost"/>
+        <!-- broker 暴露端口 -->
+        <constructor-arg index="1" value="4402"/>
+        <!-- registry 连接字符串,如果是集群,用逗号隔开 -->
+        <constructor-arg index="2" value="192.168.179.130:2181"/>
+    </bean>
+    <!--    可以自己继承AutoMiniConsumer或MiniConsumer实现自定义的消费者    -->
+    <bean id="miniConsumer" class="com.xcxcxcxcx.client.spring.core.AutoMiniConsumer">
+        <!--         消息序列化类型                 -->
+        <constructor-arg index="0" type="java.lang.Class" value="java.lang.String"/>
+        <!--         注册中心或单机host:port        -->
+        <constructor-arg index="1" ref="clientConfig2"/>
+        <!--                消费组ID                -->
+        <constructor-arg index="2" value="firstConsumerGroup"/>
+        <!--            订阅的topicId               -->
+        <constructor-arg index="3" value="firstTopic"/>
+        <!--     消息根据key路由到指定分区,非必输     -->
+        <constructor-arg index="4" value="firstKey"/>
+        <!--        额外的消费者配置                 -->
+        <constructor-arg index="5">
+            <map>
+                <entry key="one_prefetch_max_num" value="3000"/>
+            </map>
+        </constructor-arg>
+        <constructor-arg index="6" ref="myMessageListener"/>
+    </bean>
+    <!--     真正执行监听的类,需要实现MiniMessageListener接口     -->
+    <bean id="myMessageListener" class="com.xcxcxcxcx.client.spring.test.MyMessageListener"/>
+
+
+</beans>

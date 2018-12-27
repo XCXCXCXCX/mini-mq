@@ -18,8 +18,9 @@ import java.util.concurrent.ExecutionException;
  * @author XCXCXCXCX
  * @since 1.0
  */
-public class MiniConsumer<T> implements com.xcxcxcxcx.mini.api.client.Consumer<T>{
+public class MiniConsumer<T> implements Consumer<T>{
 
+    private final Class<T> tClass;
     private final String consumerGroupId;
     private int idInGroup;
     private final Role role;
@@ -32,11 +33,12 @@ public class MiniConsumer<T> implements com.xcxcxcxcx.mini.api.client.Consumer<T
 
     private final ClientConfig clientConfig;
 
-    public MiniConsumer(ClientConfig clientConfig, String consumerGroupId, String topicId) {
-        this(clientConfig, consumerGroupId, topicId, null, null);
+    public MiniConsumer(Class<T> tClass, ClientConfig clientConfig, String consumerGroupId, String topicId) {
+        this(tClass, clientConfig, consumerGroupId, topicId, null, null);
     }
 
-    public MiniConsumer(ClientConfig clientConfig, String consumerGroupId, String topicId, String key, Map<String, Object> config) {
+    public MiniConsumer(Class<T> tClass, ClientConfig clientConfig, String consumerGroupId, String topicId, String key, Map<String, Object> config) {
+        this.tClass = tClass;
         this.consumerGroupId = consumerGroupId;
         this.topicId = topicId;
         this.role = new Role();
@@ -92,12 +94,12 @@ public class MiniConsumer<T> implements com.xcxcxcxcx.mini.api.client.Consumer<T
     }
 
     @Override
-    public BaseMessage<T> getMessage(Class<T> t, Boolean isBlocking) {
+    public BaseMessage<T> getMessage(Boolean isBlocking) {
         //把Message格式的消息转化为用户需要的对象
         //String -> Object
         try {
             Message message = handler.receive(isBlocking);
-            return new BaseMessage<T>().setMid(message.getMid()).setContent(t.equals(String.class)? (T)message.getContent() : jsonService.parseObject(message.getContent(),t));
+            return new BaseMessage<T>().setMid(message.getMid()).setContent(tClass.equals(String.class)? (T)message.getContent() : jsonService.parseObject(message.getContent(),tClass));
         } catch (IllegalAccessException e) {
             e.printStackTrace();
             return null;

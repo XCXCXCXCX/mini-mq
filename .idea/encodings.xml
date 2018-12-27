@@ -4,6 +4,9 @@
     <file url="file://$PROJECT_DIR$" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mini-mq-api" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mini-mq-client" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mini-mq-client-spring" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mini-mq-client-spring-boot" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mini-mq-client-spring-cloud-stream" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mini-mq-common" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mini-mq-core" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mini-mq-demo" charset="UTF-8" />

@@ -42,15 +42,15 @@
 
 10. 整体整合和测试（√）
 
-   1). 消息生产发送和自动批量确认（√）
+  1). 消息生产发送和自动批量确认（√）
 
-   2). 消息接收消费和消息确认、拒绝消费（√）
+  2). 消息接收消费和消息确认、拒绝消费（√）
 
-   3). 对账（√）
+  3). 对账（√）
 
-   4). 流控（√）
+  4). 流控（√）
 
-   5). 集群（√）
+  5). 集群（√）
 
 
 
@@ -123,12 +123,13 @@ BUG&优化点
 
 2. prePull有时触发有时不触发（已解决，原因：netty Bytebuf在解码的过程中未清空已读缓冲区）
 
-3.  sendMessage到partition的分发机制（目前的机制：如果消息存在key，则分发到key hash后的partition，如果消息不存在key，则随机分发到某个partition）
-4.  从partition取消息getMessage的路由规则（目前的机制：如果指定取某个key的消息，则根据key路由到partition，且仅消费该partition，如果未指定key，则轮询从partition获取消息，如果一次轮询未获得消息则返回空）
-5.  Client端的流控如何设计：1.快速失败 2.超时等待 3.提供缓冲区，超出警告，并暂时拒绝所有消息，直到缓冲区清空，需要考虑如何回调及线程安全的问题。
+3. sendMessage到partition的分发机制（目前的机制：如果消息存在key，则分发到key hash后的partition，如果消息不存在key，则随机分发到某个partition）
+4. 从partition取消息getMessage的路由规则（目前的机制：如果指定取某个key的消息，则根据key路由到partition，且仅消费该partition，如果未指定key，则轮询从partition获取消息，如果一次轮询未获得消息则返回空）
+5. Client端的流控如何设计：1.快速失败 2.超时等待 3.提供缓冲区，超出警告，并暂时拒绝所有消息，直到缓冲区清空，需要考虑如何回调及线程安全的问题。
 
 （最终选择类似于第三种方案，当pending中的消息量达到阈值，直接拒绝，返回发送失败，当消息发送时，首先进入pending队列，然后在某种条件下触发batchSend操作（条件1.此时没有正在进行的batchSend操作，当通过条件表示此时触发了batchSend操作，当从pending队列中取消息后则认为batchSend操作结束，即无需等到操作发送或回调，这样的话，理论上控制的消息流量计算公式为：最大pending阈值\*2，因为在发送第一批pending量时当前发送消息量为pending阈值，而此时的队列必定小于阈值，如果此时依然有消息被发送，则会阻塞到pending上等待下一次batchSend，那么理论上会有2\*pending阈值的消息阻塞在内存中，发送时检测pending的消息大于或等于pending阈值时会被直接拒绝）
 
 6. 当强制关闭消费者时，会令prefetch且未确认消费的消息废弃（无法再被自动消费）：在下个版本增加本地持久化存储功能
 7. 提供admin功能，允许通过控制台命令控制，允许远程连接控制
 8. broker引导程序，让程序的启动和关闭更优雅
+9. 本地存储时偶尔空指针，并且会反复catch NullPointerException when completeRequestCallback：已解决，是requestId冲突问题，修改为令牌桶的方式

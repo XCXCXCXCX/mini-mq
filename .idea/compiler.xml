@@ -8,6 +8,9 @@
         <outputRelativeToContentRoot value="true" />
         <module name="mini-mq-api" />
         <module name="mini-mq-client" />
+        <module name="mini-mq-client-spring" />
+        <module name="mini-mq-client-spring-boot" />
+        <module name="mini-mq-client-spring-cloud-stream" />
         <module name="mini-mq-common" />
         <module name="mini-mq-core" />
         <module name="mini-mq-demo" />
@@ -23,6 +26,9 @@
       <module name="mini-mq" target="1.8" />
       <module name="mini-mq-api" target="1.8" />
       <module name="mini-mq-client" target="1.8" />
+      <module name="mini-mq-client-spring" target="1.8" />
+      <module name="mini-mq-client-spring-boot" target="1.8" />
+      <module name="mini-mq-client-spring-cloud-stream" target="1.8" />
       <module name="mini-mq-common" target="1.8" />
       <module name="mini-mq-core" target="1.8" />
       <module name="mini-mq-demo" target="1.8" />

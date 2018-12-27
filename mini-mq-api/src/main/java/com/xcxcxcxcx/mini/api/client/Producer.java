@@ -17,9 +17,12 @@ public interface Producer<T> extends Partner{
      */
     Boolean synSend(T o);
 
+    Boolean synSend(String key, T o);
+
     /**
      * 发送消息（异步）
      */
     CompletableFuture<Boolean> send(T o);
 
+    CompletableFuture<Boolean> send(String key, T o);
 }

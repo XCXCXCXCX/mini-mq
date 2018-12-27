@@ -19,6 +19,9 @@
         <module>mini-mq-client</module>
         <module>mini-mq-registry</module>
         <module>mini-mq-demo</module>
+        <module>mini-mq-client-spring</module>
+        <module>mini-mq-client-spring-boot</module>
+        <module>mini-mq-client-spring-cloud-stream</module>
     </modules>
 
     <properties>

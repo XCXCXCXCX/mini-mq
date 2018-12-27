@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * @author XCXCXCXCX
@@ -22,6 +23,21 @@ public final class CacheCenter implements MessageStorage {
     private final Map<Long, MessageInfo> messageInfoMap1 = new ConcurrentHashMap<>();
 
     private final Map<Long, MessageInfo> messageInfoMap2 = new ConcurrentHashMap<>();
+
+    public static void main(String[] args) {
+        MessageStorage messageStorage = new CacheCenter();
+        List<MessageInfo> messageInfos = new ArrayList<>();
+        for(int i = 0; i < 9999999; i++){
+            messageInfos.add(new MessageInfo().setId((long)i));
+        }
+        List<Long> messageIds = messageInfos.stream().map(messageInfo -> messageInfo.getId()).collect(Collectors.toList());
+        messageStorage.remotePush(messageInfos);
+        messageStorage.localPushAck(messageIds);
+        messageStorage.remotePushAck(messageIds);
+        messageStorage.remotePull(messageInfos);
+        messageStorage.localPullAck(messageIds);
+        messageStorage.remotePullAck(messageIds);
+    }
 
     /**
      * 线程不安全的，这里的messageInfos在遍历过程中不允许改变，否则需要copy处理而耗费空间

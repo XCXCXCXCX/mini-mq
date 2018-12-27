@@ -17,6 +17,6 @@ public class P1_T1 extends ProducerFastly{
     }
 
     public static void main(String[] args) {
-        new P1_T1().startProduce();
+        new P1_T1().startProduce(88888);
     }
 }

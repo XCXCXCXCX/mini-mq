@@ -5,6 +5,7 @@ import com.xcxcxcxcx.client.producer.MiniProducer;
 import com.xcxcxcxcx.demo.pub.config.TestConfig;
 import com.xcxcxcxcx.demo.pub.entity.InfoEntity;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.CompletableFuture;
 
@@ -23,6 +24,8 @@ public abstract class AbstractProducer extends MiniProducer<InfoEntity> {
     private final long start = System.currentTimeMillis();
 
     private int idGenerator = 0;
+
+    private int successId = 0;
 
     public AbstractProducer(int seconds, int num, String id, String topicId){
         super(TestConfig.clientConfig,id,topicId);
@@ -48,6 +51,26 @@ public abstract class AbstractProducer extends MiniProducer<InfoEntity> {
         while(System.currentTimeMillis() - start <= millisecond){
             produce();
         }
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 发送count条消息
+     * @param count
+     */
+    public void startProduce(int count){
+        while(idGenerator < count){
+            produce();
+        }
+        try {
+            System.in.read();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void produce(){
@@ -56,9 +79,9 @@ public abstract class AbstractProducer extends MiniProducer<InfoEntity> {
         CompletableFuture<Boolean> completableFuture = send(entity);
         completableFuture.whenComplete(((aBoolean, throwable) -> {
             if(aBoolean){
-                System.out.println("发送消息" + entity.toString() + "--->成功");
+                System.out.println(++successId +"发送消息" + entity.getId() + "--->成功");
             }else{
-                System.out.println("发送消息" + entity.toString() + "--->失败");
+                System.out.println("发送消息" + entity.getId() + "--->失败");
             }
         }));
     }

@@ -20,6 +20,8 @@ import com.xcxcxcxcx.mini.api.connector.message.PacketDispatcher;
 import com.xcxcxcxcx.mini.api.connector.message.entity.*;
 import com.xcxcxcxcx.mini.api.connector.message.handler.BaseHandler;
 import com.xcxcxcxcx.mini.api.event.service.Listener;
+import com.xcxcxcxcx.mini.api.spi.json.JsonSerializationService;
+import com.xcxcxcxcx.mini.api.spi.json.JsonSerializationServiceFactory;
 import com.xcxcxcxcx.mini.tools.thread.ThreadManager;
 import com.xcxcxcxcx.mini.tools.thread.ThreadPoolManager;
 import com.xcxcxcxcx.network.connection.NettyConnection;
@@ -78,6 +80,11 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
      */
     private static final int MESSAGE_EXPIRED_TIME = 5 * 60 * 1000;
 
+    /**
+     * 默认最大阻塞请求数是5000个
+     */
+    private static final int MAX_PENDING_REQUEST_NUM_LIMIT = 5000;
+
     private int max_pending_num_limit = MAX_PENDING_NUM_LIMIT;
     private long max_pending_time_limit = MAX_PENDING_TIME_LIMIT;
     private int max_prefetch_capacity = MAX_PREFETCH_CAPACITY;
@@ -92,12 +99,15 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     private final Queue<Message> pendingHandleMessage = new ConcurrentLinkedQueue<>();
     private final Queue<Message> pendingSend = new ConcurrentLinkedQueue<>();
     private final Queue<IdAndAck> pendingReceiveAck = new ConcurrentLinkedQueue<>();
+    private final Queue<Integer> requestIdBuckets = new ConcurrentLinkedQueue<>();
 
     private volatile CompletableFuture<Boolean> currentSendFuture;
     private volatile CompletableFuture<Boolean> currentReceiveAckFuture;
 
     private static final AtomicLong pendingSendStart = new AtomicLong(0);
     private static final AtomicLong pendingReceiveAckStart = new AtomicLong(0);
+
+    private final JsonSerializationService jsonService = JsonSerializationServiceFactory.create();
 
     /**
      * 本地消息信息存储
@@ -162,7 +172,14 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         packetDispatcher.register(Command.PULL_ACK_RESPONSE, new PullAckResponseHandler(this));
         packetDispatcher.register(Command.PUSH_ACK_SETTLE_RESPONSE, new SettlePushAckResponseHandler(messageStorage));
         packetDispatcher.register(Command.PULL_ACK_SETTLE_RESPONSE, new SettlePullAckResponseHandler(messageStorage));
-        packetDispatcher.register(Command.HAND_SHAKE_OK, new ClientHandshakeOKHandler(this));
+        packetDispatcher.register(Command.HAND_SHAKE_OK, new ClientHandshakeOKHandler(this, listener));
+
+        /**
+         * 初始化请求ID桶
+         */
+        for(int i = 0; i < MAX_PENDING_REQUEST_NUM_LIMIT; i++){
+            requestIdBuckets.offer(i);
+        }
 
         if(roleName.equals(Role.PRODUCER)){
             pendingAckExecutor =
@@ -256,10 +273,6 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         shakehandOK = true;
     }
 
-    public CompletableFuture<Boolean> send(Object o) throws IllegalAccessException {
-        return send(null, o);
-    }
-
     public CompletableFuture<Boolean> send(String key, Object o) throws IllegalAccessException {
         if(roleName.equals(Role.CONSUMER)){
             throw new IllegalAccessException("消费者不允许生产消息");
@@ -289,7 +302,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         //默认消息超时时间5分钟，超时会被broker删除
         message.setKey(key);
         message.setExpired(System.currentTimeMillis() + message_expired_time);
-        message.setContent(o.toString());
+        message.setContent(jsonService.parseString(o));
         if(!pendingSend.offer(message)){
             throw new RuntimeException("加入pendingReceiveAck队列失败，队列可能已经满了!");
         }
@@ -327,7 +340,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
          * key可以让消息发送到同一个partition，从而保证了一定的顺序
          * ps.不能完全保证消息顺序，只能保证积压的消息的顺序性
          */
-        push.id = getRequestId(push);
+        push.id = getRequestId();
         push.messages = pendingPushMessages;
 
         doSendPush(push, completableFuture);
@@ -496,7 +509,7 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
         getAckIdsAndRejectIds(pendingAckId, pendingRejectId, pendingReceiveAck, pendingReceiveAckStart);
         isPendingPullAckOrReject = false;
 
-        ack.id = getRequestId(ack);
+        ack.id = getRequestId();
         ack.key = this.key;
         ack.messageAckIds = pendingAckId;
         ack.messageRejectIds = pendingRejectId;
@@ -506,11 +519,26 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     }
 
     /**
-     * requestId
+     * 拿取requestId
      * @return
      */
-    private int getRequestId(Object o) {
-        return Integer.valueOf(new SimpleDateFormat("ddHHmmss").format(new Date())) * 100 + o.hashCode() % 100;
+    private int getRequestId() {
+        Integer x = requestIdBuckets.poll();
+        if(x == null){
+            throw new RuntimeException("current request too many! try to set bigger MAX_REQUEST_NUM_LIMIT.");
+        }
+        return x;
+    }
+
+    /**
+     * 归还requestId
+     * @param x
+     */
+    private void returnRequestId(Integer x){
+        if(x == null){
+            throw new NullPointerException("return NULL requestId!");
+        }
+        requestIdBuckets.offer(x);
     }
 
     private void doSendPullAck(PullAck ack, int times, final CompletableFuture<Boolean> completableFuture) {
@@ -694,10 +722,12 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter implement
     private void completeRequestCallback(int id) {
         try {
             requestCallback.remove(id).complete(true);
+            returnRequestId(id);
             LOGGER.debug("request callback [id={}] success", id);
         }catch (NullPointerException e){
             //定时任务重试
             LOGGER.error("catch NullPointerException when completeRequestCallback, start retry-callback-pool..");
+            LOGGER.debug("request callback map : " + requestCallback.toString());
             retry_callback_timer.newTimeout(timeout -> {
                 LOGGER.debug("retry-callback-pool try handle [id={}] NullPointerException ...", id);
                 completeRequestCallback(id);

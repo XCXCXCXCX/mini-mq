@@ -80,15 +80,25 @@ public class MiniProducer<T> implements Producer<T>{
         return send(o).join();
     }
 
+    @Override
+    public Boolean synSend(String key, T o) {
+        return send(key, o).join();
+    }
+
     /**
      * 异步
      * @param o
      */
     @Override
     public CompletableFuture<Boolean> send(T o) {
+        return send(null, o);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> send(String key, T o){
         //TODO
         try {
-            return handler.send(o);
+            return handler.send(key, o);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
             return null;

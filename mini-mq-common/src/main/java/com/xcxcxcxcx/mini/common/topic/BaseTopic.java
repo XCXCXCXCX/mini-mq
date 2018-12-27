@@ -1,6 +1,5 @@
 package com.xcxcxcxcx.mini.common.topic;
 
-import com.sun.istack.internal.Nullable;
 import com.xcxcxcxcx.mini.api.connector.message.Message;
 import com.xcxcxcxcx.mini.api.connector.topic.Partition;
 import com.xcxcxcxcx.mini.api.connector.topic.Topic;
@@ -174,7 +173,6 @@ public abstract class BaseTopic implements Topic{
      * @return
      */
     @Override
-    @Nullable
     public List<Message> getMessage() {
         List<BasePartition> partitions = this.partitions;
         List<Message> result = new ArrayList<>();

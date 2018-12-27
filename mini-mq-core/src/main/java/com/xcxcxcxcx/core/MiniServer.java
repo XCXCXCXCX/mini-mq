@@ -39,6 +39,11 @@ public final class MiniServer {
         discoveryClient.register(node);
     }
 
+    /**
+     * 测试阶段暂时使用这种方式启动
+     * @param args
+     * @throws IOException
+     */
     public static void main(String[] args) throws IOException {
         new MiniServer();
         System.in.read();

@@ -1,12 +1,13 @@
 package com.xcxcxcxcx.demo.pub.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * @author XCXCXCXCX
  * @since 1.0
  */
-public final class InfoEntity {
+public final class InfoEntity implements Serializable{
 
     private int id;
 

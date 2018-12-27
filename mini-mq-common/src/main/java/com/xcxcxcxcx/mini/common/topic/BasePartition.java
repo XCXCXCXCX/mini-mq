@@ -1,11 +1,9 @@
 package com.xcxcxcxcx.mini.common.topic;
 
-import com.sun.istack.internal.Nullable;
 import com.xcxcxcxcx.mini.api.client.Consumer;
 import com.xcxcxcxcx.mini.api.client.Producer;
 import com.xcxcxcxcx.mini.api.connector.message.Message;
 import com.xcxcxcxcx.mini.api.connector.topic.Partition;
-import com.xcxcxcxcx.mini.api.connector.topic.Topic;
 import com.xcxcxcxcx.mini.tools.config.MiniConfig;
 
 import java.time.Duration;
@@ -91,7 +89,6 @@ public abstract class BasePartition implements Partition{
     }
 
     @Override
-    @Nullable
     public List<Message> pullMessage() {
 
         long start = System.currentTimeMillis();

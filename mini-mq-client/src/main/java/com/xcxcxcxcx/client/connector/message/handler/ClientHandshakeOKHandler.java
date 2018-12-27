@@ -7,6 +7,7 @@ import com.xcxcxcxcx.mini.api.connector.message.Packet;
 import com.xcxcxcxcx.mini.api.connector.message.entity.HandshakeOK;
 import com.xcxcxcxcx.mini.api.connector.message.handler.BaseHandler;
 import com.xcxcxcxcx.mini.api.connector.message.wrapper.HandshakeOKPacketWrapper;
+import com.xcxcxcxcx.mini.api.event.service.Listener;
 import com.xcxcxcxcx.mini.tools.thread.ThreadPoolManager;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -33,10 +34,14 @@ public final class ClientHandshakeOKHandler extends BaseHandler{
 
     private static int timeoutTimes = 0;
 
+    private final Listener reconnectListener;
+
     private final HandshakeOKListener handshakeOKListener;
 
-    public ClientHandshakeOKHandler(HandshakeOKListener handshakeOKListener) {
+    public ClientHandshakeOKHandler(HandshakeOKListener handshakeOKListener,
+                                    Listener reconnectListener) {
         this.handshakeOKListener = handshakeOKListener;
+        this.reconnectListener = reconnectListener;
     }
 
     @Override
@@ -62,7 +67,7 @@ public final class ClientHandshakeOKHandler extends BaseHandler{
                 TimeUnit.MILLISECONDS);
     }
 
-    private static class HeartbeatTask implements TimerTask{
+    private class HeartbeatTask implements TimerTask{
 
         private final Connection connection;
 
@@ -74,7 +79,11 @@ public final class ClientHandshakeOKHandler extends BaseHandler{
         public void run(Timeout timeout) throws Exception {
 
             if (connection == null || !connection.isConnected()) {
-                LOGGER.info("heartbeat timeout times={}, connection disconnected, conn={}", timeoutTimes, connection);
+                LOGGER.info("heartbeat timeout times={},but connection disconnected, conn={}", timeoutTimes, connection);
+                /**
+                 * 触发重连
+                 */
+                reconnectListener.onFailure(new RuntimeException("connection unusually disconnected, try reconnect..."));
                 return;
             }
 

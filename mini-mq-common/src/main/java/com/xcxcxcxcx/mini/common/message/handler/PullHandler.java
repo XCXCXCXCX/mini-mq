@@ -73,7 +73,7 @@ public final class PullHandler extends BaseHandler{
                     BrokerContext.sendMessage(key, topicId, messages);
                 }
             }
-            pullRequest.compareAndSet(true, false);
+            pullRequest.set(false);
         }
 
         @Override
