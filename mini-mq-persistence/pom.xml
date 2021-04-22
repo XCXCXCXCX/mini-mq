@@ -12,7 +12,7 @@
     <artifactId>mini-mq-persistence</artifactId>
 
     <properties>
-        <mybatis.version>3.4.6</mybatis.version>
+        <mybatis.version>3.5.6</mybatis.version>
         <mysql.driver.version>5.1.46</mysql.driver.version>
         <druid.version>1.1.5</druid.version>
     </properties>
