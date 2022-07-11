@@ -12,7 +12,7 @@
     <artifactId>mini-mq-client-spring-boot</artifactId>
 
     <properties>
-        <spring.boot.version>2.1.1.RELEASE</spring.boot.version>
+        <spring.boot.version>2.2.11.RELEASE</spring.boot.version>
     </properties>
 
     <dependencies>
